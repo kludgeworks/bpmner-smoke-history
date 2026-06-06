@@ -5,11 +5,11 @@
 name = "smoke-history"
 version = "0.1.0"
 description = "Analysis tooling for bpmner live-LLM smoke-test history"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = ["duckdb>=1.0"]
 
 [dependency-groups]
-dev = ["ruff>=0.6", "sqlfluff>=3.0", "pytest>=8.0"]
+dev = ["pytest>=8.0"]
 
 [tool.uv]
 package = false
@@ -20,7 +20,10 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py311"
+target-version = "py313"
+# mise file tasks carry #MISE / #USAGE directives that ruff would reformat (it wants `# MISE`),
+# breaking mise's parsing. The Builtin runs `ruff --force-exclude`, so this is honored.
+extend-exclude = [".mise/tasks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "W"]

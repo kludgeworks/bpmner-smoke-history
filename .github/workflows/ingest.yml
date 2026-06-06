@@ -21,27 +21,39 @@ on:
 permissions:
   contents: read
 
+# Serialize ingests so concurrent runs can't race the append-only push (queue, don't cancel).
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
 jobs:
   guard:
     # workflow_dispatch inputs are untrusted — validate before doing anything.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 #v4.0.1
+        with:
+          install: true
+          cache: true
+        env:
+          MISE_LOCKED: 0
+
       - name: Validate dispatch
         env:
           REF: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           RID: ${{ inputs.source_run_id }}
-        run: |
-          test "$REF" = "main" || { echo "ingest must run on main, got $REF"; exit 1; }
-          case "$RID" in
-            '' | *[!0-9]*) echo "source_run_id must be numeric, got '$RID'"; exit 1 ;;
-          esac
-          # TODO: once the GitHub App exists, also assert ACTOR == '<app-slug>[bot]'.
-          echo "dispatch by $ACTOR for bpmner run $RID — ok"
+        run: mise run validate-ingest
 
   ingest:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # commit the run file + SMOKE_HEALTH.md with this repo's own token
     steps:
@@ -61,7 +73,7 @@ jobs:
 
       - name: Mint token to read bpmner artifacts
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -97,4 +109,11 @@ jobs:
           git config user.email "bpmner-smoke-history-bot@users.noreply.github.com"
           git add data SMOKE_HEALTH.md
           git commit -m "data: smoke run $RID ($SHA)"
-          git push
+          # Serialized by the concurrency group; rebase-and-retry guards the rare other-writer race and
+          # fails loudly (re-dispatchable) rather than silently dropping a run.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "push rejected (attempt $attempt) — rebasing onto origin/main"
+            git pull --rebase origin main || { echo "rebase conflict; re-dispatch this run"; exit 1; }
+          done
+          echo "push failed after retries; re-dispatch this run"; exit 1
