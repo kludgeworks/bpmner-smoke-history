@@ -99,7 +99,9 @@ def render(data_dir: Path | str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("data_dir", help="directory tree of *.jsonl result files")
-    print(render(ap.parse_args().data_dir))
+    # render() already terminates with a single newline; write it verbatim so the file ends with exactly one.
+    # A bare print() would append a second, producing a trailing blank line that end-of-file-fixer rejects.
+    print(render(ap.parse_args().data_dir), end="")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from smoke_history.render_dashboard import render
+from smoke_history.render_dashboard import main, render
 
 DATA = Path(__file__).parent / "testdata"
 
@@ -34,3 +34,12 @@ def test_only_partial_rows_renders_placeholder(tmp_path):
         encoding="utf-8",
     )
     assert "No completed runs" in render(tmp_path)
+
+
+def test_cli_output_ends_with_exactly_one_newline(capsys, monkeypatch):
+    # The dashboard is written via `python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md`; the file
+    # must end with exactly one newline or end-of-file-fixer rejects it. Run main() in-process, check stdout.
+    monkeypatch.setattr("sys.argv", ["render_dashboard", str(DATA)])
+    main()
+    out = capsys.readouterr().out
+    assert out.endswith("\n") and not out.endswith("\n\n")
