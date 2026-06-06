@@ -5,7 +5,8 @@ name: ingest
 
 # Dispatched by bpmner's CI after a smoke run (it mints an Actions:write GitHub-App token and calls
 # `gh workflow run ingest.yml -f ...`). This workflow pulls that run's artifacts, consolidates them into
-# one per-run JSONL, re-renders the dashboard, and commits — all with this repo's own GITHUB_TOKEN.
+# one per-run JSONL, re-renders the dashboard, and commits — pushing as the App (a Contents:write token,
+# which bypasses the branch ruleset on main).
 on:
   workflow_dispatch:
     inputs:
@@ -116,8 +117,10 @@ jobs:
             exit 0
           fi
           uv run python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md
+          # 291257155 = bpmner-smoke-history-bot[bot]'s user id; the <id>+ prefix links commits to the App
+          # (create-github-app-token has no app-user-id output, and the guard pins this exact slug).
           git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git config user.email "291257155+${APP_SLUG}[bot]@users.noreply.github.com"
           git add data SMOKE_HEALTH.md
           git commit -m "data: smoke run $RID ($SHA)"
           # Serialized by the concurrency group; rebase-and-retry guards the rare other-writer race and

@@ -25,7 +25,7 @@ bpmner dispatches ingest but cannot write here directly:
 3. This repo's [`ingest`](.github/workflows/ingest.yml) workflow guards the (untrusted) inputs, pulls
    those artifacts (`download-artifact@v8`, **Actions: read** on bpmner), runs `consolidate.py` — joining
    `test.xml` for the authoritative post-retry outcome — renders the dashboard, and commits the new data
-   file + `SMOKE_HEALTH.md` **as the App** (Contents: write), which bypasses the branch ruleset.
+   file + `SMOKE_HEALTH.md` **as the App** (Contents: Read & write), which bypasses the branch ruleset.
 
 ## Querying
 

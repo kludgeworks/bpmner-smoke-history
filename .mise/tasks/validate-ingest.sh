@@ -18,12 +18,11 @@ run_id="${usage_run_id:?}"
   exit 1
 }
 
-# Fail closed against human manual runs: only the automation app (a [bot] actor) may dispatch.
-# TODO: once the GitHub App exists, tighten this to the exact '<app-slug>[bot]'.
+# Fail closed: only the bpmner-smoke-history-bot App may dispatch (humans + other bots rejected).
 case "$actor" in
-*'[bot]') ;;
+'bpmner-smoke-history-bot[bot]') ;;
 *)
-  echo "ingest may only be dispatched by the automation app, not '$actor'"
+  echo "ingest may only be dispatched by bpmner-smoke-history-bot, not '$actor'"
   exit 1
   ;;
 esac
