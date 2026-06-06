@@ -1,0 +1,109 @@
+# Copyright 2026 The Project Contributors
+# SPDX-License-Identifier: MIT
+
+name: ingest
+
+# Dispatched by bpmner's CI after a smoke run (it mints an Actions:write GitHub-App token and calls
+# `gh workflow run ingest.yml -f ...`). This workflow pulls that run's artifacts, consolidates them into
+# one per-run JSONL, re-renders the dashboard, and commits — all with this repo's own GITHUB_TOKEN.
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: Repository that produced the smoke run (must be kludgeworks/bpmner)
+        required: true
+        type: string
+      source_run_id:
+        description: The bpmner Actions run id whose smoke-* artifacts to ingest
+        required: true
+        type: string
+      sha:
+        description: The bpmner commit SHA under test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    # workflow_dispatch inputs are untrusted — validate before doing anything.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate dispatch
+        env:
+          REF: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SRC: ${{ inputs.source_repo }}
+          RID: ${{ inputs.source_run_id }}
+        run: |
+          test "$REF" = "main" || { echo "ingest must run on main, got $REF"; exit 1; }
+          case "$SRC" in
+            kludgeworks/bpmner) ;;
+            *) echo "unexpected source_repo: $SRC"; exit 1 ;;
+          esac
+          case "$RID" in
+            '' | *[!0-9]*) echo "source_run_id must be numeric, got '$RID'"; exit 1 ;;
+          esac
+          # TODO: once the GitHub App exists, also assert ACTOR == '<app-slug>[bot]'.
+          echo "dispatch by $ACTOR for $SRC run $RID — ok"
+
+  ingest:
+    needs: guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the run file + SMOKE_HEALTH.md with this repo's own token
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 #v4.0.1
+        with:
+          install: true
+          cache: true
+        env:
+          MISE_LOCKED: 0
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Mint token to read bpmner artifacts
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: kludgeworks
+          repositories: bpmner
+          permission-actions: read
+
+      - name: Download smoke artifacts from the bpmner run
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          repository: ${{ inputs.source_repo }}
+          run-id: ${{ inputs.source_run_id }}
+          pattern: smoke-*
+          path: smoke-artifacts
+
+      - name: Consolidate, render, commit
+        env:
+          RID: ${{ inputs.source_run_id }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          dest="data/year=$(date -u +%Y)/month=$(date -u +%m)"
+          mkdir -p "$dest"
+          out="$dest/run-$RID.jsonl"
+          mise exec -- uv run python -m smoke_history.consolidate smoke-artifacts "$RID" -o "$out"
+          if [ ! -s "$out" ]; then
+            echo "no smoke rows for run $RID — nothing to publish"
+            rm -f "$out"
+            exit 0
+          fi
+          mise exec -- uv run python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md
+          git config user.name "bpmner-smoke-history-bot"
+          git config user.email "bpmner-smoke-history-bot@users.noreply.github.com"
+          git add data SMOKE_HEALTH.md
+          git commit -m "data: smoke run $RID ($SHA)"
+          git push

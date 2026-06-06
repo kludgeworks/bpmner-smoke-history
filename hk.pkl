@@ -1,0 +1,66 @@
+amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+  ["ruff_check"] = new Step {
+    glob = List("**/*.py")
+    batch = true
+    check = "uv run ruff check {{files}}"
+    fix = "uv run ruff check --fix {{files}}"
+  }
+  ["ruff_format"] = new Step {
+    glob = List("**/*.py")
+    batch = true
+    check = "uv run ruff format --check {{files}}"
+    fix = "uv run ruff format {{files}}"
+  }
+  ["sqlfluff"] = new Step {
+    glob = List("**/*.sql")
+    batch = true
+    check = "uv run sqlfluff lint {{files}}"
+    fix = "uv run sqlfluff fix {{files}}"
+  }
+  ["taplo_format"] = Builtins.taplo_format
+  ["actionlint"] = Builtins.actionlint
+  ["addlicense"] = new Step {
+    required = List("LICENSE_HOLDER", "LICENSE_TYPE")
+    glob = List("**/*")
+    exclude = List("uv.lock", "LICENSE", "data/**", "tests/testdata*/**")
+    batch = true
+    check = "addlicense -s=only -c \"$LICENSE_HOLDER\" -l \"$LICENSE_TYPE\" -check {{files}}"
+    fix = "addlicense -s=only -c \"$LICENSE_HOLDER\" -l \"$LICENSE_TYPE\" {{files}}"
+  }
+  ["check_merge_conflict"] = Builtins.check_merge_conflict
+  ["newlines"] = Builtins.newlines
+  ["trailing_whitespace"] = Builtins.trailing_whitespace
+  ["mixed_line_ending"] = Builtins.mixed_line_ending
+  ["check_case_conflict"] = Builtins.check_case_conflict
+  ["check_symlinks"] = Builtins.check_symlinks
+  ["detect_private_key"] = Builtins.detect_private_key
+}
+
+hooks {
+  ["pre-commit"] {
+    steps {
+      ...linters
+    }
+  }
+  ["commit-msg"] {
+    steps {
+      ["check_conventional_commit"] = (Builtins.check_conventional_commit) {
+        check =
+          "hk util check-conventional-commit --allowed-types feat,fix,docs,refactor,chore {{commit_msg_file}}"
+      }
+    }
+  }
+  ["fix"] {
+    steps {
+      ...linters
+    }
+  }
+  ["check"] {
+    steps {
+      ...linters
+    }
+  }
+}

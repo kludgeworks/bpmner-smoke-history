@@ -1,0 +1,13 @@
+[sqlfluff]
+dialect = duckdb
+max_line_length = 110
+# Source columns are an externally-defined camelCase JSON schema (SmokeRunResult) while our aliases are
+# snake_case, so no single identifier-casing policy fits; `model` is also a dialect keyword used as an
+# alias. Both rules are inapplicable here.
+exclude_rules = CP02, RF04
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower

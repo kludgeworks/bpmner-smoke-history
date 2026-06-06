@@ -1,0 +1,14 @@
+# Copyright 2026 The Project Contributors
+# SPDX-License-Identifier: MIT
+#
+# Per-provider pass-rate floors for the smoke gate (Phase 2.2). Calibrate from accumulated history.
+# Adding a provider is a one-line entry here, not a code change; unknown providers use `default`.
+default = 0.80
+
+[overrides]
+anthropic = 0.95
+openai = 0.95
+gemini = 0.90
+deepseek = 0.90
+mistral = 0.90
+llama = 0.80

@@ -1,0 +1,9 @@
+<!--
+Copyright 2026 The Project Contributors
+SPDX-License-Identifier: MIT
+-->
+<testsuite name="ContractVocabularySmokeTest" tests="3" failures="0" errors="0" skipped="0">
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsServiceTask()"/>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsBoundaryEvent()"/>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsParallelGateway()"/>
+</testsuite>

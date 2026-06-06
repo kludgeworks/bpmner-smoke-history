@@ -1,0 +1,41 @@
+# Copyright 2026 The Project Contributors
+# SPDX-License-Identifier: MIT
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 #v4.0.1
+        with:
+          install: true
+          cache: true
+        env:
+          MISE_LOCKED: 0
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Lint (hk — ruff, sqlfluff, addlicense, actionlint, generic)
+        run: mise exec -- hk check --all
+
+      - name: Test
+        run: mise exec -- uv run pytest -q

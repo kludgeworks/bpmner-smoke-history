@@ -1,0 +1,12 @@
+<!--
+Copyright 2026 The Project Contributors
+SPDX-License-Identifier: MIT
+First attempt: extractsBoundaryEvent failed (classification miss); Bazel retried.
+-->
+<testsuite name="ContractVocabularySmokeTest" tests="3" failures="1" errors="0" skipped="0">
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsServiceTask()"/>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsBoundaryEvent()">
+    <failure message="Expected boundary event of type Timer">classification miss</failure>
+  </testcase>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsParallelGateway()"/>
+</testsuite>
