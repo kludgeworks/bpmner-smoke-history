@@ -3,7 +3,7 @@
 """Render the "Smoke Health" dashboard from accumulated per-run result files.
 
 Reads a directory tree of newline-delimited JSON (`*.jsonl`), one `SmokeRunResult` per line, runs the
-rolling-window analytics with DuckDB (queries in `queries/`), and prints the dashboard markdown.
+analytics with DuckDB (queries in `queries/`), and prints the dashboard markdown.
 
     uv run python -m smoke_history.render_dashboard <data-dir>
 """
@@ -15,12 +15,13 @@ from pathlib import Path
 
 import duckdb
 
-WINDOW_RUNS = 60  # documented rolling window; widen once enough history accrues
 _QUERIES = Path(__file__).resolve().parent.parent / "queries"
+_FLAKY_LIMIT = 25
+_PLACEHOLDER = "# 🔬 Smoke Health\n\n_No completed runs recorded yet._\n"
 
 
 def _load(con: duckdb.DuckDBPyConnection, data_dir: Path) -> bool:
-    """Load every `*.jsonl` under data_dir into a `results` view. Returns False if there's no data."""
+    """Load every `*.jsonl` under data_dir into a `results` view. Returns False if there are no files."""
     files = sorted(Path(data_dir).rglob("*.jsonl"))
     if not files:
         return False
@@ -44,15 +45,22 @@ def _rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
     return [dict(zip(cols, r, strict=False)) for r in cur.fetchall()]
 
 
+def _cell(value: object) -> str:
+    """Markdown-table-safe: escape pipes and flatten newlines so a stray value can't corrupt the table."""
+    return str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
+
+
 def render(data_dir: Path | str) -> str:
     con = duckdb.connect(":memory:")
-    if not _load(con, Path(data_dir)):
-        return "# 🔬 Smoke Health\n\n_No completed runs recorded yet._\n"
+    # Placeholder when there are no *completed* rows — not merely no files: a directory of only
+    # runComplete=false rows passes the file check but the view is empty.
+    if not _load(con, Path(data_dir)) or con.execute("SELECT count(*) FROM results").fetchone()[0] == 0:
+        return _PLACEHOLDER
 
     out = [
         "# 🔬 Smoke Health",
         "",
-        f"_Rolling window: last {WINDOW_RUNS} runs · report-only · provider = model family under test._",
+        "_Report-only · all recorded runs · provider = model family under test._",
         "",
         "## Provider scorecard",
         "",
@@ -62,7 +70,7 @@ def render(data_dir: Path | str) -> str:
     for r in _rows(con, "scorecard"):
         cost = "n/a*" if r["cost_caveat"] else f"${r['cost_per_run'] or 0:.4f}"
         out.append(
-            f"| {r['provider']} | `{r['model'] or '?'}` | {r['runs']} | {r['pass_pct']} | "
+            f"| {_cell(r['provider'])} | `{_cell(r['model'] or '?')}` | {r['runs']} | {r['pass_pct']} | "
             f"{r['fails']} | {cost} | {r['tokens'] or 0} |"
         )
     out += [
@@ -77,11 +85,13 @@ def render(data_dir: Path | str) -> str:
     flaky = _rows(con, "flaky")
     if not flaky:
         out.append("| _none_ | | | |")
-    for r in flaky:
+    for r in flaky[:_FLAKY_LIMIT]:
         out.append(
-            f"| `{r['testMethod']}` | {r['fail_pct']} | "
-            f"{r['providers_failed']} ({r['failed_on']}) | {r['samples']} |"
+            f"| `{_cell(r['testMethod'])}` | {r['fail_pct']} | "
+            f"{r['providers_failed']} ({_cell(r['failed_on'])}) | {r['samples']} |"
         )
+    if len(flaky) > _FLAKY_LIMIT:
+        out += ["", f"_…and {len(flaky) - _FLAKY_LIMIT} more flaky tests._"]
     out.append("")
     return "\n".join(out)
 

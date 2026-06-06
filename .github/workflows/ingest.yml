@@ -21,10 +21,16 @@ on:
 permissions:
   contents: read
 
+# Serialize ingests so concurrent runs can't race the append-only push (queue, don't cancel).
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
 jobs:
   guard:
     # workflow_dispatch inputs are untrusted — validate before doing anything.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Validate dispatch
         env:
@@ -36,12 +42,18 @@ jobs:
           case "$RID" in
             '' | *[!0-9]*) echo "source_run_id must be numeric, got '$RID'"; exit 1 ;;
           esac
-          # TODO: once the GitHub App exists, also assert ACTOR == '<app-slug>[bot]'.
+          # Fail closed against human manual runs: only the automation app (a [bot] actor) may dispatch.
+          # TODO: once the GitHub App exists, tighten this to the exact '<app-slug>[bot]'.
+          case "$ACTOR" in
+            *'[bot]') ;;
+            *) echo "ingest may only be dispatched by the automation app, not '$ACTOR'"; exit 1 ;;
+          esac
           echo "dispatch by $ACTOR for bpmner run $RID — ok"
 
   ingest:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # commit the run file + SMOKE_HEALTH.md with this repo's own token
     steps:
@@ -61,7 +73,7 @@ jobs:
 
       - name: Mint token to read bpmner artifacts
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -70,7 +82,7 @@ jobs:
           permission-actions: read
 
       - name: Download smoke artifacts from the bpmner run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           repository: kludgeworks/bpmner
@@ -97,4 +109,11 @@ jobs:
           git config user.email "bpmner-smoke-history-bot@users.noreply.github.com"
           git add data SMOKE_HEALTH.md
           git commit -m "data: smoke run $RID ($SHA)"
-          git push
+          # Serialized by the concurrency group; rebase-and-retry guards the rare other-writer race and
+          # fails loudly (re-dispatchable) rather than silently dropping a run.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "push rejected (attempt $attempt) — rebasing onto origin/main"
+            git pull --rebase origin main || { echo "rebase conflict; re-dispatch this run"; exit 1; }
+          done
+          echo "push failed after retries; re-dispatch this run"; exit 1
