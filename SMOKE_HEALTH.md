@@ -19,9 +19,8 @@ _\* cost unknown — provider has no configured pricing._
 
 | Test | Fail % | Providers failed | Samples |
 |---|---:|---|---:|
-| `escalation boundary event()` | 100.0 | 1 (deepseek) | 1 |
 | `embedded subprocess()` | 100.0 | 1 (deepseek) | 1 |
+| `escalation boundary event()` | 100.0 | 1 (deepseek) | 1 |
 | `exclusive gateway with default branch()` | 100.0 | 1 (deepseek) | 1 |
 | `parallel multi-instance activity()` | 100.0 | 1 (deepseek) | 1 |
 | `send task()` | 100.0 | 1 (deepseek) | 1 |
-

@@ -13,4 +13,5 @@ SELECT
 FROM results
 GROUP BY testMethod
 HAVING count(DISTINCT provider) FILTER (WHERE outcome = 'fail') > 0
-ORDER BY providers_failed DESC, fail_pct DESC;
+-- testMethod (the GROUP BY key) breaks ties so the order — and the renderer's top-N cap — is deterministic.
+ORDER BY providers_failed DESC, fail_pct DESC, testMethod ASC;

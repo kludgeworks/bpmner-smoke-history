@@ -1,6 +1,9 @@
 amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
 
+// Machine-generated, append-only ingest data — never lint it (the recorder/consolidator owns its format).
+exclude = List("data/**")
+
 local linters = new Mapping<String, Step> {
   ["ruff_check"] = Builtins.ruff
   ["ruff_format"] = Builtins.ruff_format
