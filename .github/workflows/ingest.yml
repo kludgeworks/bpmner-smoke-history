@@ -9,10 +9,6 @@ name: ingest
 on:
   workflow_dispatch:
     inputs:
-      source_repo:
-        description: Repository that produced the smoke run (must be kludgeworks/bpmner)
-        required: true
-        type: string
       source_run_id:
         description: The bpmner Actions run id whose smoke-* artifacts to ingest
         required: true
@@ -34,19 +30,14 @@ jobs:
         env:
           REF: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
-          SRC: ${{ inputs.source_repo }}
           RID: ${{ inputs.source_run_id }}
         run: |
           test "$REF" = "main" || { echo "ingest must run on main, got $REF"; exit 1; }
-          case "$SRC" in
-            kludgeworks/bpmner) ;;
-            *) echo "unexpected source_repo: $SRC"; exit 1 ;;
-          esac
           case "$RID" in
             '' | *[!0-9]*) echo "source_run_id must be numeric, got '$RID'"; exit 1 ;;
           esac
           # TODO: once the GitHub App exists, also assert ACTOR == '<app-slug>[bot]'.
-          echo "dispatch by $ACTOR for $SRC run $RID — ok"
+          echo "dispatch by $ACTOR for bpmner run $RID — ok"
 
   ingest:
     needs: guard
@@ -82,7 +73,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           github-token: ${{ steps.app-token.outputs.token }}
-          repository: ${{ inputs.source_repo }}
+          repository: kludgeworks/bpmner
           run-id: ${{ inputs.source_run_id }}
           pattern: smoke-*
           path: smoke-artifacts
