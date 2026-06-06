@@ -48,7 +48,7 @@ jobs:
           REF: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           RID: ${{ inputs.source_run_id }}
-        run: mise run validate-dispatch
+        run: mise run validate-ingest
 
   ingest:
     needs: guard

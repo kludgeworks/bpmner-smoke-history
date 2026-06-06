@@ -12,6 +12,8 @@ actionlint = "latest"
 taplo = "latest"
 shellcheck = "latest"
 shfmt = "latest"
+ruff = "0.15.16"
+"pipx:sqlfluff" = "4.2.2"
 
 [env]
 HK_MISE = 1
@@ -20,7 +22,5 @@ LICENSE_HOLDER = "The Project Contributors"
 
 [settings]
 experimental = true
+lockfile = true
 python.uv_venv_auto = "create|source"
-
-[task_config]
-includes = ["tasks"]

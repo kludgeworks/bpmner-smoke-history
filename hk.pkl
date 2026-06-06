@@ -2,32 +2,23 @@ amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.
 import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
 
 local linters = new Mapping<String, Step> {
-  ["ruff_check"] = new Step {
-    glob = List("**/*.py")
-    batch = true
-    check = "uv run ruff check {{files}}"
-    fix = "uv run ruff check --fix {{files}}"
-  }
-  ["ruff_format"] = new Step {
-    glob = List("**/*.py")
-    batch = true
-    check = "uv run ruff format --check {{files}}"
-    fix = "uv run ruff format {{files}}"
-  }
-  ["sqlfluff"] = new Step {
-    glob = List("**/*.sql")
-    batch = true
-    check = "uv run sqlfluff lint {{files}}"
-    fix = "uv run sqlfluff fix {{files}}"
-  }
+  ["ruff_check"] = Builtins.ruff
+  ["ruff_format"] = Builtins.ruff_format
+  ["sqlfluff"] = Builtins.sql_fluff
   ["shellcheck"] = (Builtins.shellcheck) {
-    glob = List("**/*.sh", "tasks/*")
+    glob = List("**/*.sh", ".mise/tasks/*.sh")
   }
   ["shfmt"] = (Builtins.shfmt) {
-    glob = List("**/*.sh", "tasks/*")
+    glob = List("**/*.sh", ".mise/tasks/*.sh")
     batch = true
     check = "shfmt -i 2 -d {{files}}"
     fix = "shfmt -i 2 -w {{files}}"
+  }
+  ["xml_format"] = new Step {
+    glob = List("**/*.xml")
+    batch = true
+    check = "mise run xml-format --check {{files}}"
+    fix = "mise run xml-format --fix {{files}}"
   }
   ["taplo_format"] = Builtins.taplo_format
   ["actionlint"] = Builtins.actionlint

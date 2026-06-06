@@ -3,14 +3,15 @@
 # Copyright 2026 The Project Contributors
 # SPDX-License-Identifier: MIT
 #
-# mise task: validate an ingest workflow_dispatch (untrusted inputs) before doing any work.
-# Takes positional args, else env REF / ACTOR / RID:  <ref> <actor> <run-id>
-#   mise run validate-dispatch main 'bpmner-automation[bot]' 27055561491
+#MISE description="Validate an ingest dispatch (untrusted inputs) before any work."
+#USAGE flag "--ref <ref>" env="REF" help="git ref the dispatch ran on (must be main)"
+#USAGE flag "--actor <actor>" env="ACTOR" help="dispatching actor (must be a [bot])"
+#USAGE flag "--run-id <run_id>" env="RID" help="bpmner Actions run id (numeric)"
 set -euo pipefail
 
-ref="${1:-${REF:-}}"
-actor="${2:-${ACTOR:-}}"
-rid="${3:-${RID:-}}"
+ref="${usage_ref:?}"
+actor="${usage_actor:?}"
+run_id="${usage_run_id:?}"
 
 [ "$ref" = "main" ] || {
   echo "ingest must run on main, got '$ref'"
@@ -27,11 +28,11 @@ case "$actor" in
   ;;
 esac
 
-case "$rid" in
+case "$run_id" in
 '' | *[!0-9]*)
-  echo "source_run_id must be numeric, got '$rid'"
+  echo "run_id must be numeric, got '$run_id'"
   exit 1
   ;;
 esac
 
-echo "dispatch by $actor for bpmner run $rid — ok"
+echo "dispatch by $actor for bpmner run $run_id — ok"
