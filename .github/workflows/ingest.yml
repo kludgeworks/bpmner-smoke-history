@@ -58,21 +58,12 @@ jobs:
     permissions:
       contents: read # the data push uses the App token (Contents:write), not the default GITHUB_TOKEN
     steps:
-      - name: Load App credentials from 1Password
-        uses: 1Password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          APP_ID: op://bpmner/smoke-history-app/app-id
-          APP_PRIVATE_KEY: op://bpmner/smoke-history-app/private-key
-
       - name: Mint token to write this repo
         id: write-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.SMOKE_HISTORY_APP_ID }}
+          private-key: ${{ secrets.SMOKE_HISTORY_APP_PRIVATE_KEY }}
           permission-contents: write
 
       - name: Checkout repository
@@ -95,8 +86,8 @@ jobs:
         id: read-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.SMOKE_HISTORY_APP_ID }}
+          private-key: ${{ secrets.SMOKE_HISTORY_APP_PRIVATE_KEY }}
           owner: kludgeworks
           repositories: bpmner
           permission-actions: read
