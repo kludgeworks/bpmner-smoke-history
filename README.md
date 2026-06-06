@@ -1,16 +1,31 @@
 # bpmner-smoke-history
 
-Append-only history of [bpmner](https://github.com/kludgeworks/bpmner) live-LLM **smoke-test** results.
+Append-only history of [bpmner](https://github.com/kludgeworks/bpmner) live-LLM **smoke-test** results,
+plus the tooling that ingests and renders it. The rolling dashboard is **[SMOKE_HEALTH.md](SMOKE_HEALTH.md)**.
 
-Each run of bpmner's `smoke-tests` workflow appends one consolidated file:
+## Data
+
+Each bpmner smoke run appends one consolidated file:
 
 ```
 data/year=YYYY/month=MM/run-<run_id>.jsonl
 ```
 
-with one row per *(provider, test-method)* — outcome, per-test cost/tokens, `attempts`, and
-change-detection fingerprints. Written by bpmner's `publish-smoke-history` job via a GitHub App
-(Contents: write). **Do not edit by hand** — it is machine-managed, append-only.
+one row per *(provider, test-method)* — outcome, per-test cost/tokens, `attempts`, and change-detection
+fingerprints. **Machine-managed, append-only — do not edit by hand.**
+
+## How it works
+
+bpmner's CI *produces* the data; this repo *owns* ingest + rendering. The trigger is one-way —
+bpmner dispatches ingest but cannot write here directly:
+
+1. Each bpmner smoke job uploads a `smoke-<provider>` artifact (`smoke-results.jsonl` + Bazel `test.xml`).
+2. bpmner's `dispatch-smoke-history` job mints an **Actions: write** GitHub-App token and calls
+   `gh workflow run ingest.yml` here with the source run id.
+3. This repo's [`ingest`](.github/workflows/ingest.yml) workflow guards the (untrusted) inputs, pulls
+   those artifacts (`download-artifact@v8`, **Actions: read** on bpmner), runs `consolidate.py` — joining
+   `test.xml` for the authoritative post-retry outcome + `attempts` — renders the dashboard, and commits
+   the new data file + `SMOKE_HEALTH.md` with **this repo's own `GITHUB_TOKEN`**.
 
 ## Querying
 
@@ -26,6 +41,25 @@ GROUP BY provider
 ORDER BY fails DESC;
 ```
 
-The rendered provider scorecard + flaky-test ranking live in bpmner's pinned **"Smoke Health"**
-issue. The render / query / consolidation scripts are in
-[`bpmner:tools/smoke-history/`](https://github.com/kludgeworks/bpmner/tree/main/tools/smoke-history).
+The queries the dashboard itself uses live in [`queries/`](queries/).
+
+## Development
+
+Tooling is managed by [mise](https://mise.jdx.dev) + [uv](https://docs.astral.sh/uv/):
+
+```bash
+mise install   # python, uv, duckdb, hk, …
+uv sync        # runtime dep (duckdb) + dev (ruff, sqlfluff, pytest)
+
+uv run pytest                                          # tests
+hk check --all                                         # ruff + sqlfluff + addlicense + actionlint
+uv run python -m smoke_history.render_dashboard data   # render the dashboard from local data/
+```
+
+## Setup — the cross-repo GitHub App
+
+The dispatch/ingest loop needs **one** GitHub App (org `kludgeworks`): **Actions: Read & write** +
+**Metadata: Read**, installed on **both** `bpmner` and `bpmner-smoke-history`. Add its credentials:
+
+- **this repo** (Settings → Secrets and variables → Actions): variable `APP_ID`, secret `APP_PRIVATE_KEY`
+- **bpmner** (1Password): `op://bpmner/smoke-history-app/app-id` + `.../private-key`
