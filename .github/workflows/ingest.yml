@@ -55,10 +55,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write # commit the run file + SMOKE_HEALTH.md with this repo's own token
+      contents: read # the data push uses the App token (Contents:write), not the default GITHUB_TOKEN
     steps:
+      - name: Mint token to write this repo
+        id: write-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          token: ${{ steps.write-token.outputs.token }} # push bypasses the branch ruleset as the App
 
       - name: Setup mise
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 #v4.0.1
@@ -72,7 +82,7 @@ jobs:
         run: uv sync
 
       - name: Mint token to read bpmner artifacts
-        id: app-token
+        id: read-token
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.APP_ID }}
@@ -84,7 +94,7 @@ jobs:
       - name: Download smoke artifacts from the bpmner run
         uses: actions/download-artifact@v8
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.read-token.outputs.token }}
           repository: kludgeworks/bpmner
           run-id: ${{ inputs.source_run_id }}
           pattern: smoke-*
@@ -94,6 +104,7 @@ jobs:
         env:
           RID: ${{ inputs.source_run_id }}
           SHA: ${{ inputs.sha }}
+          APP_SLUG: ${{ steps.write-token.outputs.app-slug }}
         run: |
           dest="data/year=$(date -u +%Y)/month=$(date -u +%m)"
           mkdir -p "$dest"
@@ -105,8 +116,8 @@ jobs:
             exit 0
           fi
           uv run python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md
-          git config user.name "bpmner-smoke-history-bot"
-          git config user.email "bpmner-smoke-history-bot@users.noreply.github.com"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
           git add data SMOKE_HEALTH.md
           git commit -m "data: smoke run $RID ($SHA)"
           # Serialized by the concurrency group; rebase-and-retry guards the rare other-writer race and
