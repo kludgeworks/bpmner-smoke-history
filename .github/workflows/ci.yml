@@ -34,8 +34,8 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
-      - name: Lint (hk — ruff, sqlfluff, addlicense, actionlint, generic)
-        run: mise exec -- hk check --all
+      - name: Lint
+        run: hk check --all
 
       - name: Test
-        run: mise exec -- uv run pytest -q
+        run: uv run pytest -q
