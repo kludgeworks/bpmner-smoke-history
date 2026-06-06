@@ -60,7 +60,6 @@ uv run python -m smoke_history.render_dashboard data   # render the dashboard fr
 
 The dispatch/ingest loop needs **one** GitHub App (org `kludgeworks`): **Actions: Read & write** +
 **Contents: Read & write** + **Metadata: Read**, installed on **both** `bpmner` and `bpmner-smoke-history`.
-Add its credentials:
-
-- **this repo** (Settings → Secrets and variables → Actions): variable `APP_ID`, secret `APP_PRIVATE_KEY`
-- **bpmner** (1Password): `op://bpmner/smoke-history-app/app-id` + `.../private-key`
+Its credentials live in **1Password** (`op://bpmner/smoke-history-app/app-id` + `.../private-key`), read by
+both repos' workflows via `1Password/load-secrets-action`. Each repo only needs the 1Password
+service-account token as a GitHub Actions secret — **`OP_SERVICE_ACCOUNT_TOKEN`**.
