@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 The Project Contributors
+# SPDX-License-Identifier: MIT
+#
+# mise task: validate an ingest workflow_dispatch (untrusted inputs) before doing any work.
+# Takes positional args, else env REF / ACTOR / RID:  <ref> <actor> <run-id>
+#   mise run validate-dispatch main 'bpmner-automation[bot]' 27055561491
+set -euo pipefail
+
+ref="${1:-${REF:-}}"
+actor="${2:-${ACTOR:-}}"
+rid="${3:-${RID:-}}"
+
+[ "$ref" = "main" ] || {
+  echo "ingest must run on main, got '$ref'"
+  exit 1
+}
+
+# Fail closed against human manual runs: only the automation app (a [bot] actor) may dispatch.
+# TODO: once the GitHub App exists, tighten this to the exact '<app-slug>[bot]'.
+case "$actor" in
+*'[bot]') ;;
+*)
+  echo "ingest may only be dispatched by the automation app, not '$actor'"
+  exit 1
+  ;;
+esac
+
+case "$rid" in
+'' | *[!0-9]*)
+  echo "source_run_id must be numeric, got '$rid'"
+  exit 1
+  ;;
+esac
+
+echo "dispatch by $actor for bpmner run $rid — ok"

@@ -20,6 +20,15 @@ local linters = new Mapping<String, Step> {
     check = "uv run sqlfluff lint {{files}}"
     fix = "uv run sqlfluff fix {{files}}"
   }
+  ["shellcheck"] = (Builtins.shellcheck) {
+    glob = List("**/*.sh", "tasks/*")
+  }
+  ["shfmt"] = (Builtins.shfmt) {
+    glob = List("**/*.sh", "tasks/*")
+    batch = true
+    check = "shfmt -i 2 -d {{files}}"
+    fix = "shfmt -i 2 -w {{files}}"
+  }
   ["taplo_format"] = Builtins.taplo_format
   ["actionlint"] = Builtins.actionlint
   ["addlicense"] = new Step {

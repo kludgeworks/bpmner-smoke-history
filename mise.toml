@@ -10,6 +10,8 @@ pkl = "latest"
 "github:google/addlicense" = "latest"
 actionlint = "latest"
 taplo = "latest"
+shellcheck = "latest"
+shfmt = "latest"
 
 [env]
 HK_MISE = 1
@@ -19,3 +21,6 @@ LICENSE_HOLDER = "The Project Contributors"
 [settings]
 experimental = true
 python.uv_venv_auto = "create|source"
+
+[task_config]
+includes = ["tasks"]

@@ -41,7 +41,7 @@ def _junit_outcomes(xml_path: Path) -> dict[tuple[str, str], str]:
     out: dict[tuple[str, str], str] = {}
     try:
         root = ET.parse(xml_path).getroot()
-    except ET.ParseError, OSError:
+    except (ET.ParseError, OSError):
         return out
     for tc in root.iter("testcase"):
         key = (_simple_class(tc.get("classname", "")), _norm(tc.get("name", "")))

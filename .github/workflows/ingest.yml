@@ -32,23 +32,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 #v4.0.1
+        with:
+          install: true
+          cache: true
+        env:
+          MISE_LOCKED: 0
+
       - name: Validate dispatch
         env:
           REF: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           RID: ${{ inputs.source_run_id }}
-        run: |
-          test "$REF" = "main" || { echo "ingest must run on main, got $REF"; exit 1; }
-          case "$RID" in
-            '' | *[!0-9]*) echo "source_run_id must be numeric, got '$RID'"; exit 1 ;;
-          esac
-          # Fail closed against human manual runs: only the automation app (a [bot] actor) may dispatch.
-          # TODO: once the GitHub App exists, tighten this to the exact '<app-slug>[bot]'.
-          case "$ACTOR" in
-            *'[bot]') ;;
-            *) echo "ingest may only be dispatched by the automation app, not '$ACTOR'"; exit 1 ;;
-          esac
-          echo "dispatch by $ACTOR for bpmner run $RID — ok"
+        run: mise run validate-dispatch
 
   ingest:
     needs: guard
@@ -73,7 +73,7 @@ jobs:
 
       - name: Mint token to read bpmner artifacts
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -82,7 +82,7 @@ jobs:
           permission-actions: read
 
       - name: Download smoke artifacts from the bpmner run
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@v8
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           repository: kludgeworks/bpmner
