@@ -1,0 +1,13 @@
+{
+	"rules": [
+		{
+			"id": "actions-pinning-policy",
+			"severity": "medium",
+			"scope": [
+				".github/workflows/**/*.yml",
+				".github/workflows/**/*.yaml"
+			],
+			"rule": "GitHub Actions pinning policy. First-party actions in the `actions/*` org must be pinned to a major-version tag (e.g. `actions/checkout@v6`, `actions/download-artifact@v8`, `actions/create-github-app-token@v3`). Reserve full commit-SHA pinning — with a trailing version comment — for third-party actions only (e.g. `jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1`). Flag any first-party `actions/*` action pinned to a commit SHA, and flag any third-party action pinned to a floating tag instead of a SHA."
+		}
+	]
+}
