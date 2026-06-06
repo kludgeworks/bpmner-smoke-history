@@ -16,8 +16,8 @@ fingerprints. **Machine-managed, append-only — do not edit by hand.**
 
 ## How it works
 
-bpmner's CI *produces* the data; this repo *owns* ingest + rendering. bpmner can trigger this repo and
-read is one-way — bpmner cannot write here:
+bpmner's CI *produces* the data; this repo *owns* ingest + rendering. The trigger is one-way —
+bpmner dispatches ingest but cannot write here directly:
 
 1. Each bpmner smoke job uploads a `smoke-<provider>` artifact (`smoke-results.jsonl` + Bazel `test.xml`).
 2. bpmner's `dispatch-smoke-history` job mints an **Actions: write** GitHub-App token and calls
