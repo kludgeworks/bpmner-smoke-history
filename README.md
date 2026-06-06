@@ -11,7 +11,7 @@ Each bpmner smoke run appends one consolidated file:
 data/year=YYYY/month=MM/run-<run_id>.jsonl
 ```
 
-one row per *(provider, test-method)* — outcome, per-test cost/tokens, `attempts`, and change-detection
+one row per *(provider, test-method)* — outcome, per-test cost/tokens, and change-detection
 fingerprints. **Machine-managed, append-only — do not edit by hand.**
 
 ## How it works
@@ -24,8 +24,8 @@ bpmner dispatches ingest but cannot write here directly:
    `gh workflow run ingest.yml` here with the source run id.
 3. This repo's [`ingest`](.github/workflows/ingest.yml) workflow guards the (untrusted) inputs, pulls
    those artifacts (`download-artifact@v8`, **Actions: read** on bpmner), runs `consolidate.py` — joining
-   `test.xml` for the authoritative post-retry outcome + `attempts` — renders the dashboard, and commits
-   the new data file + `SMOKE_HEALTH.md` with **this repo's own `GITHUB_TOKEN`**.
+   `test.xml` for the authoritative post-retry outcome — renders the dashboard, and commits the new data
+   file + `SMOKE_HEALTH.md` **as the App** (Contents: Read & write), which bypasses the branch ruleset.
 
 ## Querying
 
@@ -49,7 +49,7 @@ Tooling is managed by [mise](https://mise.jdx.dev) + [uv](https://docs.astral.sh
 
 ```bash
 mise install   # python, uv, duckdb, hk, …
-uv sync        # runtime dep (duckdb) + dev (ruff, sqlfluff, pytest)
+uv sync        # python deps: duckdb (runtime) + pytest (dev); ruff/sqlfluff/shellcheck/shfmt are mise tools
 
 uv run pytest                                          # tests
 hk check --all                                         # ruff + sqlfluff + addlicense + actionlint
@@ -59,7 +59,8 @@ uv run python -m smoke_history.render_dashboard data   # render the dashboard fr
 ## Setup — the cross-repo GitHub App
 
 The dispatch/ingest loop needs **one** GitHub App (org `kludgeworks`): **Actions: Read & write** +
-**Metadata: Read**, installed on **both** `bpmner` and `bpmner-smoke-history`. Add its credentials:
+**Contents: Read & write** + **Metadata: Read**, installed on **both** `bpmner` and `bpmner-smoke-history`.
+Add its credentials:
 
 - **this repo** (Settings → Secrets and variables → Actions): variable `APP_ID`, secret `APP_PRIVATE_KEY`
 - **bpmner** (1Password): `op://bpmner/smoke-history-app/app-id` + `.../private-key`
