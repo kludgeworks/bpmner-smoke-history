@@ -8,7 +8,7 @@ SELECT
     testMethod,
     round(100.0 * avg(CASE WHEN outcome = 'fail' THEN 1 ELSE 0 END), 1) AS fail_pct,
     count(DISTINCT provider) FILTER (WHERE outcome = 'fail') AS providers_failed,
-    string_agg(DISTINCT provider, ', ') FILTER (WHERE outcome = 'fail') AS failed_on,
+    string_agg(DISTINCT provider, ', ' ORDER BY provider) FILTER (WHERE outcome = 'fail') AS failed_on,
     count(*) AS samples
 FROM results
 GROUP BY testMethod

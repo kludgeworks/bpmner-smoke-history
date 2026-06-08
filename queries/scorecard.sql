@@ -6,7 +6,8 @@
 -- TODO (Phase 2.3): split by served model, not just provider.
 SELECT
     provider,
-    any_value(servedModel) AS model,
+    -- min (not any_value): deterministic across renders, and skips rows with a null servedModel.
+    min(servedModel) AS model,
     count(DISTINCT runId) AS runs,
     round(100.0 * avg(CASE WHEN outcome = 'pass' THEN 1 ELSE 0 END), 1) AS pass_pct,
     sum(CASE WHEN outcome = 'fail' THEN 1 ELSE 0 END) AS fails,

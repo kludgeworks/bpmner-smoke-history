@@ -11,9 +11,12 @@ analytics with DuckDB (queries in `queries/`), and prints the dashboard markdown
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import duckdb
+
+from smoke_history.charts import line_chart_svg, stacked_bar_svg
 
 _QUERIES = Path(__file__).resolve().parent.parent / "queries"
 _FLAKY_LIMIT = 25
@@ -45,23 +48,38 @@ def _rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
     return [dict(zip(cols, r, strict=False)) for r in cur.fetchall()]
 
 
+def _try_rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
+    """Like _rows but returns [] if the query references columns absent from the loaded data.
+
+    A missing column is expected (the schema evolves run-to-run), but a typo'd column or table name
+    raises the same BinderException — so log to stderr, otherwise a broken query just silently drops
+    its whole section with no trace in the CI log.
+    """
+    try:
+        return _rows(con, query)
+    except duckdb.BinderException as e:
+        sys.stderr.write(f"  query '{query}' skipped — column/table not found: {e}\n")
+        return []
+
+
 def _cell(value: object) -> str:
     """Markdown-table-safe: escape pipes and flatten newlines so a stray value can't corrupt the table."""
     return str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 
 
-def render(data_dir: Path | str) -> str:
-    con = duckdb.connect(":memory:")
-    # Placeholder when there are no *completed* rows — not merely no files: a directory of only
-    # runComplete=false rows passes the file check but the view is empty.
-    if not _load(con, Path(data_dir)) or con.execute("SELECT count(*) FROM results").fetchone()[0] == 0:
-        return _PLACEHOLDER
+def _write_chart(assets_dir: Path, filename: str, svg: str) -> str:
+    """Write an SVG and return its markdown image path.
 
+    The trailing newline keeps the end-of-file-fixer happy on every regeneration; the returned link is
+    derived from assets_dir so the committed file and the ![](…) reference can't drift apart.
+    """
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    (assets_dir / filename).write_text(svg + "\n", encoding="utf-8")
+    return f"{assets_dir.as_posix()}/{filename}"
+
+
+def _render_scorecard(con: duckdb.DuckDBPyConnection) -> list[str]:
     out = [
-        "# 🔬 Smoke Health",
-        "",
-        "_Report-only · all recorded runs · provider = model family under test._",
-        "",
         "## Provider scorecard",
         "",
         "| Provider | Model | Runs | Pass % | Fails | $/run | Tokens |",
@@ -73,10 +91,12 @@ def render(data_dir: Path | str) -> str:
             f"| {_cell(r['provider'])} | `{_cell(r['model'] or '?')}` | {r['runs']} | {r['pass_pct']} | "
             f"{r['fails']} | {cost} | {r['tokens'] or 0} |"
         )
-    out += [
-        "",
-        "_\\* cost unknown — provider has no configured pricing._",
-        "",
+    out += ["", "_\\* cost unknown — provider has no configured pricing._"]
+    return out
+
+
+def _render_flaky(con: duckdb.DuckDBPyConnection) -> list[str]:
+    out = [
         "## Flaky tests (fail across providers ⇒ test/prompt suspect; one provider ⇒ model limit)",
         "",
         "| Test | Fail % | Providers failed | Samples |",
@@ -92,6 +112,225 @@ def render(data_dir: Path | str) -> str:
         )
     if len(flaky) > _FLAKY_LIMIT:
         out += ["", f"_…and {len(flaky) - _FLAKY_LIMIT} more flaky tests._"]
+    return out
+
+
+def _render_stage_split(con: duckdb.DuckDBPyConnection) -> list[str]:
+    rows = _try_rows(con, "stage_split")
+    # Filter out rows where all metrics are None (e.g. deepseek which never reaches the LLM stage).
+    rows = [r for r in rows if any(r[k] is not None for k in ("total_prompt_tokens", "total_llm_calls"))]
+    if not rows:
+        return []
+    out = [
+        "## Stage breakdown",
+        "",
+        "_Per-pipeline-stage model and token usage (readiness vs extraction)._",
+        "",
+        "| Provider | Stage | Model | Prompt tokens | Completion tokens | LLM calls | Samples |",
+        "|---|---|---|---:|---:|---:|---:|",
+    ]
+    for r in rows:
+        stage = _cell(r["stage"]).replace("goal-", "")
+        out.append(
+            f"| {_cell(r['provider'])} | {stage} | `{_cell(r['model'] or '?')}` | "
+            f"{r['total_prompt_tokens'] or 0} | {r['total_completion_tokens'] or 0} | "
+            f"{r['total_llm_calls'] or 0} | {r['samples']} |"
+        )
+    return out
+
+
+def _render_llm_efficiency(con: duckdb.DuckDBPyConnection) -> list[str]:
+    rows = _try_rows(con, "llm_call_distribution")
+    if not rows:
+        return []
+    out = [
+        "## LLM efficiency",
+        "",
+        "_Distribution of LLM API calls per test — more calls may indicate retries or tool loops._",
+        "",
+        "| Provider | Min | Avg | Median | P95 | Max | σ | Samples |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for r in rows:
+        median = int(r["median_calls"]) if r["median_calls"] is not None else "?"
+        p95 = int(r["p95_calls"]) if r["p95_calls"] is not None else "?"
+        out.append(
+            f"| {_cell(r['provider'])} | {r['min_calls']} | {r['avg_calls']} | "
+            f"{median} | {p95} | {r['max_calls']} | {r['stddev_calls'] or 0} | {r['samples']} |"
+        )
+    return out
+
+
+def _render_latency(con: duckdb.DuckDBPyConnection, assets_dir: Path | None) -> list[str]:
+    """Generate an avg-latency-over-runs line chart per provider (seconds).
+
+    A per-(run, provider) table grows unbounded as runs accumulate; a time-series chart stays a fixed
+    size and surfaces the trend, which is what matters for latency.
+    """
+    if assets_dir is None:
+        return []
+    rows = _try_rows(con, "latency_timeseries")
+    # Only runs with real latency data (pre-instrumentation runs report 0).
+    rows = [r for r in rows if r["avg_llm_time_ms"]]
+    if len({r["runId"] for r in rows}) < 2:
+        return []
+
+    # Build series: provider -> [(run_label, avg_seconds), ...]; rows are already ordered by run_ts.
+    by_provider: dict[str, list[tuple[str, float]]] = {}
+    for r in rows:
+        label = str(r["runId"])[-8:]
+        by_provider.setdefault(r["provider"], []).append((label, r["avg_llm_time_ms"] / 1000))
+
+    svg = line_chart_svg(by_provider, "Avg LLM latency by provider over runs (s)")
+    link = _write_chart(assets_dir, "latency-trend.svg", svg)
+
+    return [
+        "## Latency",
+        "",
+        "_Average LLM response time per provider over runs (seconds, wall-clock)._",
+        "",
+        f"![Avg LLM latency by provider over runs]({link})",
+    ]
+
+
+def _render_failure_categories(con: duckdb.DuckDBPyConnection) -> list[str]:
+    rows = _try_rows(con, "failure_categories")
+    rows = [r for r in rows if r["failureCategory"] is not None]
+    if not rows:
+        return []
+    out = [
+        "## Failure categories",
+        "",
+        "_`deterministic` = harness/config failure (e.g. context load); `classification` = the model "
+        "produced a wrong answer. Separates 'the harness broke' from 'the model struggled'._",
+        "",
+        "| Provider | Category | Failures | % of provider fails | Sample signature |",
+        "|---|---|---:|---:|---|",
+    ]
+    for r in rows:
+        # Truncate the raw signature *before* escaping — slicing escaped text could split a "\|" and
+        # leave a trailing backslash that escapes the table's delimiter pipe.
+        sig = r["sample_signature"] or ""
+        if len(sig) > 80:
+            sig = sig[:77] + "…"
+        sig = _cell(sig)
+        out.append(
+            f"| {_cell(r['provider'])} | {_cell(r['failureCategory'])} | {r['failures']} | "
+            f"{r['pct_of_provider_failures'] or 0} | {sig} |"
+        )
+    return out
+
+
+def _render_cost_chart(con: duckdb.DuckDBPyConnection, assets_dir: Path | None) -> list[str]:
+    """Generate a cost-trend SVG if 2+ runs exist and an assets dir is provided."""
+    if assets_dir is None:
+        return []
+    rows = _try_rows(con, "cost_timeseries")
+    runs = sorted({r["runId"] for r in rows})
+    if len(runs) < 2:
+        return []
+
+    # Build series: provider -> [(run_label, cost_per_test), ...]
+    # Providers run rotating shards, so the test count per run varies (4–8). Charting raw per-run
+    # totals would conflate per-test cost with shard size, so normalise to cost-per-test.
+    by_provider: dict[str, list[tuple[str, float]]] = {}
+    for r in rows:
+        if not r["cost_known"]:
+            continue
+        tests = r["tests_in_run"] or 0
+        if not tests:
+            continue
+        label = str(r["runId"])[-8:]
+        by_provider.setdefault(r["provider"], []).append((label, r["total_cost"] / tests))
+
+    if not by_provider:
+        return []
+
+    svg = line_chart_svg(by_provider, "Cost per test by provider over runs ($)")
+    link = _write_chart(assets_dir, "cost-trend.svg", svg)
+
+    return [
+        "## Cost trends",
+        "",
+        "_Cost **per test** — shard sizes vary run-to-run, so raw per-run totals aren't comparable._",
+        "",
+        f"![Cost per test by provider over runs]({link})",
+    ]
+
+
+def _render_token_chart(con: duckdb.DuckDBPyConnection, assets_dir: Path | None) -> list[str]:
+    """Generate a readiness-vs-extraction token chart per provider.
+
+    The pipeline has two stages: a cheap readiness gatekeeper (ProcessInputAssessment) and an
+    expensive extraction step (ValidatedProcessContract). How tokens split between them is a leading
+    indicator of prompt-engineering drift that raw prompt/completion totals mask.
+    """
+    if assets_dir is None:
+        return []
+    rows = _try_rows(con, "stage_split")
+    if not rows:
+        return []
+
+    providers = sorted({r["provider"] for r in rows})
+
+    def _stage_tokens(provider: str, stage: str) -> int:
+        r = next((x for x in rows if x["provider"] == provider and x["stage"] == stage), None)
+        return (r["total_prompt_tokens"] or 0) + (r["total_completion_tokens"] or 0) if r else 0
+
+    readiness = [_stage_tokens(p, "ProcessInputAssessment") for p in providers]
+    extraction = [_stage_tokens(p, "ValidatedProcessContract") for p in providers]
+    if not any(readiness) and not any(extraction):
+        return []
+
+    svg = stacked_bar_svg(
+        providers,
+        {"Readiness (assessment)": readiness, "Extraction (contract)": extraction},
+        "Token split: readiness vs extraction",
+    )
+    link = _write_chart(assets_dir, "token-split.svg", svg)
+
+    return [
+        "## Token split (readiness vs extraction)",
+        "",
+        "_Tokens spent in the cheap readiness gatekeeper vs the expensive extraction stage, per provider._",
+        "",
+        f"![Token split by provider]({link})",
+    ]
+
+
+def render(data_dir: Path | str, assets_dir: Path | str | None = None) -> str:
+    con = duckdb.connect(":memory:")
+    # Placeholder when there are no *completed* rows — not merely no files: a directory of only
+    # runComplete=false rows passes the file check but the view is empty.
+    if not _load(con, Path(data_dir)) or con.execute("SELECT count(*) FROM results").fetchone()[0] == 0:
+        return _PLACEHOLDER
+
+    assets = Path(assets_dir) if assets_dir is not None else None
+
+    out = [
+        "# 🔬 Smoke Health",
+        "",
+        "_Report-only · all recorded runs · provider = model family under test._",
+        "",
+    ]
+    out += _render_scorecard(con)
+    out += [""]
+    out += _render_flaky(con)
+
+    # New sections — each returns [] if the data doesn't warrant a section.
+    for section_fn in (
+        lambda: _render_failure_categories(con),
+        lambda: _render_stage_split(con),
+        lambda: _render_llm_efficiency(con),
+        lambda: _render_latency(con, assets),
+        lambda: _render_cost_chart(con, assets),
+        lambda: _render_token_chart(con, assets),
+    ):
+        section = section_fn()
+        if section:
+            out += [""]
+            out += section
+
     out.append("")
     return "\n".join(out)
 
@@ -99,9 +338,15 @@ def render(data_dir: Path | str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("data_dir", help="directory tree of *.jsonl result files")
+    ap.add_argument(
+        "--assets-dir",
+        default=None,
+        help="directory for generated SVG chart assets (default: no charts)",
+    )
     # render() already terminates with a single newline; write it verbatim so the file ends with exactly one.
     # A bare print() would append a second, producing a trailing blank line that end-of-file-fixer rejects.
-    print(render(ap.parse_args().data_dir), end="")
+    args = ap.parse_args()
+    print(render(args.data_dir, args.assets_dir), end="")
 
 
 if __name__ == "__main__":
