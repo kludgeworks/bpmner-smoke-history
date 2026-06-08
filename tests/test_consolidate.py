@@ -47,6 +47,16 @@ def test_missing_test_xml_keeps_recorder_outcome(tmp_path):
     assert rows[0]["recoveredOnRetry"] is False
 
 
+def test_row_without_outcome_does_not_crash(tmp_path):
+    # A recorder row missing "outcome" entirely, with no test.xml to reconcile, must not KeyError.
+    _provider(tmp_path, json.dumps({"testClass": "T", "testMethod": "m()"}))
+    rows = consolidate(tmp_path, "r")
+    assert len(rows) == 1
+    assert rows[0]["firstAttemptOutcome"] == "unknown"
+    assert rows[0]["finalOutcome"] == "unknown"
+    assert rows[0]["recoveredOnRetry"] is False
+
+
 def test_malformed_line_is_skipped(tmp_path):
     _provider(
         tmp_path,

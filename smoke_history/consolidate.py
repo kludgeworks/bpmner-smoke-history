@@ -79,9 +79,10 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
             # Field names track bpmner-smoke-history#8. attemptCount is intentionally omitted: the
             # true count lives in Bazel's test_attempts/**, which the bpmner workflow does not upload
             # yet (only smoke-results.jsonl + test.xml). recoveredOnRetry is the most we can derive.
+            final = row.get("outcome", first_attempt)  # .get: a row may carry no outcome at all
             row["firstAttemptOutcome"] = first_attempt
-            row["finalOutcome"] = row["outcome"]
-            row["recoveredOnRetry"] = first_attempt == "fail" and row["outcome"] == "pass"
+            row["finalOutcome"] = final
+            row["recoveredOnRetry"] = first_attempt == "fail" and final == "pass"
             row["runId"] = run_id
             rows.append(row)
             n += 1

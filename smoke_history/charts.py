@@ -228,7 +228,7 @@ def stacked_bar_svg(
     plot_h = height - margin["top"] - margin["bottom"]
 
     # Compute totals per bar for scaling.
-    totals = [sum(vals[i] for vals in series.values()) for i in range(len(labels))]
+    totals = [sum(vals[i] if i < len(vals) else 0.0 for vals in series.values()) for i in range(len(labels))]
     max_total = max(totals) if totals else 1.0
     if max_total == 0:
         max_total = 1.0

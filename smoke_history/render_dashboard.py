@@ -11,6 +11,7 @@ analytics with DuckDB (queries in `queries/`), and prints the dashboard markdown
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import duckdb
@@ -48,10 +49,16 @@ def _rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
 
 
 def _try_rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
-    """Like _rows but returns [] if the query references columns absent from the loaded data."""
+    """Like _rows but returns [] if the query references columns absent from the loaded data.
+
+    A missing column is expected (the schema evolves run-to-run), but a typo'd column or table name
+    raises the same BinderException — so log to stderr, otherwise a broken query just silently drops
+    its whole section with no trace in the CI log.
+    """
     try:
         return _rows(con, query)
-    except duckdb.BinderException:
+    except duckdb.BinderException as e:
+        sys.stderr.write(f"  query '{query}' skipped — column/table not found: {e}\n")
         return []
 
 
@@ -60,8 +67,15 @@ def _cell(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 
 
-def _run_count(con: duckdb.DuckDBPyConnection) -> int:
-    return con.execute("SELECT count(DISTINCT runId) FROM results").fetchone()[0]
+def _write_chart(assets_dir: Path, filename: str, svg: str) -> str:
+    """Write an SVG and return its markdown image path.
+
+    The trailing newline keeps the end-of-file-fixer happy on every regeneration; the returned link is
+    derived from assets_dir so the committed file and the ![](…) reference can't drift apart.
+    """
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    (assets_dir / filename).write_text(svg + "\n", encoding="utf-8")
+    return f"{assets_dir.as_posix()}/{filename}"
 
 
 def _render_scorecard(con: duckdb.DuckDBPyConnection) -> list[str]:
@@ -168,15 +182,14 @@ def _render_latency(con: duckdb.DuckDBPyConnection, assets_dir: Path | None) -> 
         by_provider.setdefault(r["provider"], []).append((label, r["avg_llm_time_ms"] / 1000))
 
     svg = line_chart_svg(by_provider, "Avg LLM latency by provider over runs (s)")
-    assets_dir.mkdir(parents=True, exist_ok=True)
-    (assets_dir / "latency-trend.svg").write_text(svg + "\n", encoding="utf-8")
+    link = _write_chart(assets_dir, "latency-trend.svg", svg)
 
     return [
         "## Latency",
         "",
         "_Average LLM response time per provider over runs (seconds, wall-clock)._",
         "",
-        "![Avg LLM latency by provider over runs](assets/smoke-health/latency-trend.svg)",
+        f"![Avg LLM latency by provider over runs]({link})",
     ]
 
 
@@ -195,9 +208,12 @@ def _render_failure_categories(con: duckdb.DuckDBPyConnection) -> list[str]:
         "|---|---|---:|---:|---|",
     ]
     for r in rows:
-        sig = _cell(r["sample_signature"] or "")
+        # Truncate the raw signature *before* escaping — slicing escaped text could split a "\|" and
+        # leave a trailing backslash that escapes the table's delimiter pipe.
+        sig = r["sample_signature"] or ""
         if len(sig) > 80:
             sig = sig[:77] + "…"
+        sig = _cell(sig)
         out.append(
             f"| {_cell(r['provider'])} | {_cell(r['failureCategory'])} | {r['failures']} | "
             f"{r['pct_of_provider_failures'] or 0} | {sig} |"
@@ -231,16 +247,14 @@ def _render_cost_chart(con: duckdb.DuckDBPyConnection, assets_dir: Path | None) 
         return []
 
     svg = line_chart_svg(by_provider, "Cost per test by provider over runs ($)")
-    assets_dir.mkdir(parents=True, exist_ok=True)
-    # Trailing newline so the committed asset satisfies the end-of-file-fixer on every regeneration.
-    (assets_dir / "cost-trend.svg").write_text(svg + "\n", encoding="utf-8")
+    link = _write_chart(assets_dir, "cost-trend.svg", svg)
 
     return [
         "## Cost trends",
         "",
         "_Cost **per test** — shard sizes vary run-to-run, so raw per-run totals aren't comparable._",
         "",
-        "![Cost per test by provider over runs](assets/smoke-health/cost-trend.svg)",
+        f"![Cost per test by provider over runs]({link})",
     ]
 
 
@@ -273,15 +287,14 @@ def _render_token_chart(con: duckdb.DuckDBPyConnection, assets_dir: Path | None)
         {"Readiness (assessment)": readiness, "Extraction (contract)": extraction},
         "Token split: readiness vs extraction",
     )
-    assets_dir.mkdir(parents=True, exist_ok=True)
-    (assets_dir / "token-split.svg").write_text(svg + "\n", encoding="utf-8")
+    link = _write_chart(assets_dir, "token-split.svg", svg)
 
     return [
         "## Token split (readiness vs extraction)",
         "",
         "_Tokens spent in the cheap readiness gatekeeper vs the expensive extraction stage, per provider._",
         "",
-        "![Token split by provider](assets/smoke-health/token-split.svg)",
+        f"![Token split by provider]({link})",
     ]
 
 
