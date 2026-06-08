@@ -116,12 +116,12 @@ jobs:
             rm -f "$out"
             exit 0
           fi
-          uv run python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md
+          uv run python -m smoke_history.render_dashboard data --assets-dir assets/smoke-health > SMOKE_HEALTH.md
           # 291257155 = bpmner-smoke-history-bot[bot]'s user id; the <id>+ prefix links commits to the App
           # (create-github-app-token has no app-user-id output, and the guard pins this exact slug).
           git config user.name "${APP_SLUG}[bot]"
           git config user.email "291257155+${APP_SLUG}[bot]@users.noreply.github.com"
-          git add data SMOKE_HEALTH.md
+          git add data SMOKE_HEALTH.md assets
           git commit -m "data: smoke run $RID ($SHA)"
           # Serialized by the concurrency group; rebase-and-retry guards the rare other-writer race and
           # fails loudly (re-dispatchable) rather than silently dropping a run.

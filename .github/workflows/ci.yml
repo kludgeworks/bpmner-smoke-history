@@ -6,8 +6,8 @@ name: CI
 on:
   push:
     branches: [main]
-    # The ingest pushes machine-generated data + dashboard straight to main; don't run CI for those commits.
-    paths-ignore: ['data/**', 'SMOKE_HEALTH.md']
+    # The ingest pushes machine-generated data + dashboard + chart assets straight to main; don't run CI for those commits.
+    paths-ignore: ['data/**', 'SMOKE_HEALTH.md', 'assets/**']
   pull_request:
     branches: [main]
 
