@@ -19,7 +19,7 @@ _\* cost unknown — provider has no configured pricing._
 
 | Test | Fail % | Providers failed | Samples |
 |---|---:|---|---:|
-| `event-based gateway()` | 27.3 | 2 (openai, llama) | 11 |
+| `event-based gateway()` | 27.3 | 2 (llama, openai) | 11 |
 | `error boundary event()` | 18.2 | 2 (anthropic, deepseek) | 11 |
 | `intermediate signal throw()` | 10.0 | 1 (llama) | 10 |
 | `signal end()` | 10.0 | 1 (llama) | 10 |
