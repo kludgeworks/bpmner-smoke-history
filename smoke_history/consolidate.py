@@ -72,9 +72,16 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
             except json.JSONDecodeError as e:
                 sys.stderr.write(f"  {pd.name}: skipping malformed line {lineno}: {e}\n")
                 continue
-            final = verdicts.get((row.get("testClass", ""), _norm(row.get("testMethod", ""))))
-            if final is not None:
-                row["outcome"] = final  # authoritative final verdict, post-retry
+            first_attempt = row.get("outcome", "unknown")
+            final_verdict = verdicts.get((row.get("testClass", ""), _norm(row.get("testMethod", ""))))
+            if final_verdict is not None:
+                row["outcome"] = final_verdict  # authoritative final verdict, post-retry
+            # Field names track bpmner-smoke-history#8. attemptCount is intentionally omitted: the
+            # true count lives in Bazel's test_attempts/**, which the bpmner workflow does not upload
+            # yet (only smoke-results.jsonl + test.xml). recoveredOnRetry is the most we can derive.
+            row["firstAttemptOutcome"] = first_attempt
+            row["finalOutcome"] = row["outcome"]
+            row["recoveredOnRetry"] = first_attempt == "fail" and row["outcome"] == "pass"
             row["runId"] = run_id
             rows.append(row)
             n += 1
