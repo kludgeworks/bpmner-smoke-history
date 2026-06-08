@@ -6,12 +6,12 @@ _Report-only · all recorded runs · provider = model family under test._
 
 | Provider | Model | Runs | Pass % | Fails | $/run | Tokens |
 |---|---|---:|---:|---:|---:|---:|
-| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 11 | 98.4 | 1 | $0.6035 | 1799573 |
-| deepseek | `deepseek-chat` | 3 | 100.0 | 0 | $0.0355 | 654504 |
-| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 11 | 100.0 | 0 | $0.4446 | 3058456 |
-| llama | `meta-llama/llama-3.3-70b-instruct` | 11 | 91.4 | 5 | $0.2098 | 2609361 |
-| mistral | `mistral-small-2506,mistral-large-2411` | 11 | 100.0 | 0 | $0.4516 | 4315348 |
-| openai | `gpt-4.1-mini,gpt-4.1` | 11 | 98.4 | 1 | $0.4930 | 2907483 |
+| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 12 | 98.6 | 1 | $0.6037 | 1962106 |
+| deepseek | `deepseek-chat` | 4 | 89.5 | 2 | $0.0367 | 900800 |
+| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 12 | 100.0 | 0 | $0.4315 | 3246607 |
+| llama | `meta-llama/llama-3.3-70b-instruct` | 12 | 90.9 | 6 | $0.2201 | 2986076 |
+| mistral | `mistral-small-2506,mistral-large-2411` | 12 | 100.0 | 0 | $0.4496 | 4843566 |
+| openai | `gpt-4.1-mini,gpt-4.1` | 12 | 98.5 | 1 | $0.4871 | 3141770 |
 
 _\* cost unknown — provider has no configured pricing._
 
@@ -19,8 +19,10 @@ _\* cost unknown — provider has no configured pricing._
 
 | Test | Fail % | Providers failed | Samples |
 |---|---:|---|---:|
-| `event-based gateway()` | 30.0 | 2 (openai, llama) | 10 |
-| `intermediate signal throw()` | 11.1 | 1 (llama) | 9 |
-| `error boundary event()` | 10.0 | 1 (anthropic) | 10 |
-| `intermediate message throw()` | 10.0 | 1 (llama) | 10 |
-| `parallel gateway()` | 10.0 | 1 (llama) | 10 |
+| `event-based gateway()` | 27.3 | 2 (llama, openai) | 11 |
+| `error boundary event()` | 18.2 | 2 (anthropic, deepseek) | 11 |
+| `intermediate signal throw()` | 10.0 | 1 (llama) | 10 |
+| `signal end()` | 10.0 | 1 (llama) | 10 |
+| `intermediate message throw()` | 9.1 | 1 (llama) | 11 |
+| `parallel gateway()` | 9.1 | 1 (llama) | 11 |
+| `standard loop activity()` | 9.1 | 1 (deepseek) | 11 |
