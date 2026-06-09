@@ -62,9 +62,9 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
         if not jsonl.exists():
             sys.stderr.write(f"  {pd.name}: no smoke-results.jsonl — excluded (no-data)\n")
             continue
-            
+
         xml_files = sorted(pd.glob("test_attempts/attempt_*.xml"), key=lambda p: p.name)
-        
+
         test_verdicts: dict[tuple[str, str], list[str]] = {}
         for xf in xml_files:
             if xf.exists():
@@ -82,7 +82,7 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
             except json.JSONDecodeError as e:
                 sys.stderr.write(f"  {pd.name}: skipping malformed line {lineno}: {e}\n")
                 continue
-                
+
             key = (row.get("testClass", ""), _norm(row.get("testMethod", "")))
             v_hist = test_verdicts.get(key, [])
             recorder_outcome = row.get("outcome", "unknown")
@@ -92,7 +92,7 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
             row["outcome"] = final
             row["firstAttemptOutcome"] = recorder_outcome
             row["finalOutcome"] = final
-            
+
             if recorder_outcome == "pass":
                 row["attemptCount"] = 1
                 row["retried"] = False
@@ -108,12 +108,12 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
                     else:
                         row["attemptCount"] = 1
                         row["retried"] = False
-                row["recoveredOnRetry"] = (row["retried"] and final == "pass")
+                row["recoveredOnRetry"] = row["retried"] and final == "pass"
 
             row["runId"] = run_id
             rows.append(row)
             n += 1
-            
+
         if n and not verdicts:
             sys.stderr.write(f"  {pd.name}: test.xml missing/unreadable — kept {n} recorder rows\n")
         else:
