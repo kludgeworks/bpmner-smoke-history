@@ -6,12 +6,12 @@ _Report-only · all recorded runs · provider = model family under test._
 
 | Provider | Model | Runs | Pass % | Fails | $/run | Tokens |
 |---|---|---:|---:|---:|---:|---:|
-| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 13 | 98.7 | 1 | $0.6062 | 2127386 |
-| deepseek | `deepseek-chat` | 5 | 83.3 | 4 | $0.0373 | 1144251 |
-| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 13 | 100.0 | 0 | $0.4206 | 3436391 |
-| llama | `meta-llama/llama-3.3-70b-instruct` | 13 | 90.5 | 7 | $0.2272 | 3340720 |
-| mistral | `mistral-small-2506,mistral-large-2411` | 13 | 100.0 | 0 | $0.4474 | 5344666 |
-| openai | `gpt-4.1-mini,gpt-4.1` | 13 | 98.6 | 1 | $0.4810 | 3354761 |
+| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 14 | 98.8 | 1 | $0.5864 | 2221641 |
+| deepseek | `deepseek-chat` | 6 | 83.3 | 5 | $0.0426 | 1586135 |
+| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 14 | 100.0 | 0 | $0.4179 | 3677128 |
+| llama | `meta-llama/llama-3.3-70b-instruct` | 14 | 89.9 | 8 | $0.2286 | 3619866 |
+| mistral | `mistral-small-2506,mistral-large-2411` | 14 | 100.0 | 0 | $0.4610 | 5868283 |
+| openai | `gpt-4.1-mini,gpt-4.1` | 14 | 98.7 | 1 | $0.4757 | 3568193 |
 
 _\* cost unknown — provider has no configured pricing._
 
@@ -19,14 +19,15 @@ _\* cost unknown — provider has no configured pricing._
 
 | Test | Fail % | Providers failed | Samples |
 |---|---:|---|---:|
-| `error boundary event()` | 25.0 | 2 (anthropic, deepseek) | 12 |
-| `event-based gateway()` | 25.0 | 2 (llama, openai) | 12 |
-| `intermediate signal throw()` | 18.2 | 1 (llama) | 11 |
-| `signal end()` | 9.1 | 1 (llama) | 11 |
-| `escalation end()` | 8.3 | 1 (deepseek) | 12 |
-| `intermediate message throw()` | 8.3 | 1 (llama) | 12 |
-| `parallel gateway()` | 8.3 | 1 (llama) | 12 |
-| `standard loop activity()` | 8.3 | 1 (deepseek) | 12 |
+| `error boundary event()` | 23.1 | 2 (anthropic, deepseek) | 13 |
+| `event-based gateway()` | 23.1 | 2 (llama, openai) | 13 |
+| `intermediate signal throw()` | 16.7 | 1 (llama) | 12 |
+| `parallel gateway()` | 15.4 | 1 (llama) | 13 |
+| `signal end()` | 8.3 | 1 (llama) | 12 |
+| `escalation end()` | 7.7 | 1 (deepseek) | 13 |
+| `intermediate escalation throw()` | 7.7 | 1 (deepseek) | 13 |
+| `intermediate message throw()` | 7.7 | 1 (llama) | 13 |
+| `standard loop activity()` | 7.7 | 1 (deepseek) | 13 |
 
 ## Failure categories
 
@@ -35,10 +36,10 @@ _`deterministic` = harness/config failure (e.g. context load); `classification` 
 | Provider | Category | Failures | % of provider fails | Sample signature |
 |---|---|---:|---:|---|
 | anthropic | classification | 1 | 100.0 | error boundary event()::Expected an activity carrying a ERROR boundary event,… |
-| deepseek | classification | 3 | 75.0 | error boundary event()::Expected an activity carrying a ERROR boundary event,… |
-| deepseek | deterministic | 1 | 25.0 | escalation end()::TIMER (boundaryEvent) requires detail |
-| llama | classification | 5 | 71.4 | event-based gateway()::Expected decision gateway of kind EVENT_BASED, but fou… |
-| llama | deterministic | 2 | 28.6 | event-based gateway()::RECEIVE (act-wait-for-response) requires messageName |
+| deepseek | classification | 4 | 80.0 | error boundary event()::Expected an activity carrying a ERROR boundary event,… |
+| deepseek | deterministic | 1 | 20.0 | escalation end()::TIMER (boundaryEvent) requires detail |
+| llama | classification | 6 | 75.0 | event-based gateway()::Expected decision gateway of kind EVENT_BASED, but fou… |
+| llama | deterministic | 2 | 25.0 | event-based gateway()::RECEIVE (act-wait-for-response) requires messageName |
 | openai | deterministic | 1 | 100.0 | event-based gateway()::RECEIVE (act-await-response) requires messageName |
 
 ## Stage breakdown
@@ -47,18 +48,18 @@ _Per-pipeline-stage model and token usage (readiness vs extraction)._
 
 | Provider | Stage | Model | Prompt tokens | Completion tokens | LLM calls | Samples |
 |---|---|---|---:|---:|---:|---:|
-| anthropic | ProcessInputAssessment | `claude-haiku-4-5` | 727062 | 607374 | 276 | 76 |
-| anthropic | ValidatedProcessContract | `claude-sonnet-4-6` | 648112 | 144838 | 152 | 76 |
-| deepseek | ProcessInputAssessment | `deepseek-chat` | 205872 | 148299 | 90 | 24 |
-| deepseek | ValidatedProcessContract | `deepseek-chat` | 750688 | 39392 | 48 | 24 |
-| gemini | ProcessInputAssessment | `gemini-2.5-flash` | 545874 | 407211 | 222 | 70 |
-| gemini | ValidatedProcessContract | `gemini-2.5-pro` | 2348228 | 135078 | 142 | 70 |
-| llama | ProcessInputAssessment | `meta-llama/llama-3.3-70b-instruct` | 576120 | 240510 | 258 | 74 |
-| llama | ValidatedProcessContract | `meta-llama/llama-3.3-70b-instruct` | 2438860 | 85230 | 162 | 74 |
-| mistral | ProcessInputAssessment | `mistral-small-2506` | 1938576 | 1014738 | 834 | 67 |
-| mistral | ValidatedProcessContract | `mistral-large-2411` | 2257460 | 133892 | 144 | 67 |
-| openai | ProcessInputAssessment | `gpt-4.1-mini` | 565512 | 331635 | 255 | 72 |
-| openai | ValidatedProcessContract | `gpt-4.1` | 2360752 | 96862 | 156 | 72 |
+| anthropic | ProcessInputAssessment | `claude-haiku-4-5` | 758610 | 630825 | 288 | 80 |
+| anthropic | ValidatedProcessContract | `claude-sonnet-4-6` | 682146 | 150060 | 160 | 80 |
+| deepseek | ProcessInputAssessment | `deepseek-chat` | 253872 | 184383 | 111 | 30 |
+| deepseek | ValidatedProcessContract | `deepseek-chat` | 1093202 | 54678 | 70 | 30 |
+| gemini | ProcessInputAssessment | `gemini-2.5-flash` | 582732 | 436260 | 237 | 75 |
+| gemini | ValidatedProcessContract | `gemini-2.5-pro` | 2513830 | 144306 | 152 | 75 |
+| llama | ProcessInputAssessment | `meta-llama/llama-3.3-70b-instruct` | 616434 | 258546 | 276 | 79 |
+| llama | ValidatedProcessContract | `meta-llama/llama-3.3-70b-instruct` | 2650042 | 94844 | 176 | 79 |
+| mistral | ProcessInputAssessment | `mistral-small-2506` | 2105577 | 1105212 | 906 | 75 |
+| mistral | ValidatedProcessContract | `mistral-large-2411` | 2508178 | 149316 | 160 | 75 |
+| openai | ProcessInputAssessment | `gpt-4.1-mini` | 598965 | 352926 | 270 | 77 |
+| openai | ValidatedProcessContract | `gpt-4.1` | 2512510 | 103792 | 166 | 77 |
 
 ## LLM efficiency
 
@@ -66,12 +67,12 @@ _Distribution of LLM API calls per test — more calls may indicate retries or t
 
 | Provider | Min | Avg | Median | P95 | Max | σ | Samples |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| anthropic | 5 | 5.6 | 5 | 8 | 14 | 1.6 | 76 |
-| deepseek | 5 | 5.8 | 5 | 8 | 8 | 1.3 | 24 |
-| gemini | 5 | 5.2 | 5 | 7 | 8 | 0.7 | 70 |
-| llama | 5 | 5.7 | 5 | 8 | 11 | 1.4 | 74 |
-| mistral | 5 | 14.6 | 11 | 43 | 53 | 11.4 | 67 |
-| openai | 5 | 5.7 | 5 | 8 | 13 | 1.6 | 72 |
+| anthropic | 5 | 5.6 | 5 | 8 | 14 | 1.5 | 80 |
+| deepseek | 5 | 6.0 | 5 | 8 | 18 | 2.6 | 30 |
+| gemini | 5 | 5.2 | 5 | 7 | 8 | 0.7 | 75 |
+| llama | 5 | 5.7 | 5 | 8 | 11 | 1.4 | 79 |
+| mistral | 5 | 14.2 | 11 | 41 | 53 | 11.0 | 75 |
+| openai | 5 | 5.7 | 5 | 8 | 13 | 1.5 | 77 |
 
 ## Latency
 
