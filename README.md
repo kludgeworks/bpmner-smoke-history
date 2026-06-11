@@ -12,14 +12,22 @@ data/year=YYYY/month=MM/run-<run_id>.jsonl
 ```
 
 one row per *(provider, test-method)* — outcome, per-test cost/tokens, and change-detection
-fingerprints. **Machine-managed, append-only — do not edit by hand.**
+fingerprints. Rows may also include additive smoke diagnostics, such as repeated structured-output parse
+errors or validation warnings seen during retries. **Machine-managed, append-only — do not edit by hand.**
+
+When a run uploads prompt ratchet baselines, ingest also stores one provider snapshot per run:
+
+```
+data/year=YYYY/month=MM/run-<run_id>-prompt-baselines/<provider>.json
+```
 
 ## How it works
 
 bpmner's CI *produces* the data; this repo *owns* ingest + rendering. The trigger is one-way —
 bpmner dispatches ingest but cannot write here directly:
 
-1. Each bpmner smoke job uploads a `smoke-<provider>` artifact (`smoke-results.jsonl` + Bazel `test.xml`).
+1. Each bpmner smoke job uploads a `smoke-<provider>` artifact (`smoke-results.jsonl` + Bazel `test.xml`
+   + prompt ratchet baseline snapshot when available).
 2. bpmner's `dispatch-smoke-history` job mints an **Actions: write** GitHub-App token and calls
    `gh workflow run ingest.yml` here with the source run id.
 3. This repo's [`ingest`](.github/workflows/ingest.yml) workflow guards the (untrusted) inputs, pulls

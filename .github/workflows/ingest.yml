@@ -110,10 +110,12 @@ jobs:
           dest="data/year=$(date -u +%Y)/month=$(date -u +%m)"
           mkdir -p "$dest"
           out="$dest/run-$RID.jsonl"
-          uv run python -m smoke_history.consolidate smoke-artifacts "$RID" -o "$out"
+          baseline_dir="$dest/run-$RID-prompt-baselines"
+          uv run python -m smoke_history.consolidate smoke-artifacts "$RID" -o "$out" --baseline-output-dir "$baseline_dir"
           if [ ! -s "$out" ]; then
             echo "no smoke rows for run $RID — nothing to publish"
             rm -f "$out"
+            rm -rf "$baseline_dir"
             exit 0
           fi
           uv run python -m smoke_history.render_dashboard data --assets-dir assets/smoke-health > SMOKE_HEALTH.md
