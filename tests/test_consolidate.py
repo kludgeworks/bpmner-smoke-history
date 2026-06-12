@@ -1,5 +1,6 @@
 # Copyright 2026 The Project Contributors
 # SPDX-License-Identifier: MIT
+import hashlib
 import json
 from pathlib import Path
 
@@ -12,6 +13,8 @@ def test_consolidates_every_provider():
     rows = consolidate(DATA, "test-run")
     assert len(rows) == 6  # anthropic (3) + llama (3)
     assert all(r["runId"] == "test-run" for r in rows)
+    assert all(r["promptBaselinePresent"] is True for r in rows)
+    assert all(r["promptBaselineHash"] for r in rows)
 
 
 def test_reconciles_flake_to_final_verdict():
@@ -22,6 +25,28 @@ def test_reconciles_flake_to_final_verdict():
     assert flake["firstAttemptOutcome"] == "fail"
     assert flake["finalOutcome"] == "pass"
     assert flake["recoveredOnRetry"] is True
+
+
+def test_preserves_smoke_diagnostics():
+    by = {(r["provider"], _norm(r["testMethod"])): r for r in consolidate(DATA, "r")}
+    row = by[("llama", "extractsBoundaryEvent")]
+    assert row["diagnosticSummary"] == {"llm_parse_error": 2}
+    assert row["diagnostics"][0]["kind"] == "llm_parse_error"
+    assert row["diagnostics"][0]["fieldPath"] == "id"
+
+
+def test_copies_prompt_baseline_snapshots(tmp_path):
+    baseline_dir = tmp_path / "baselines"
+    rows = consolidate(DATA, "r", baseline_dir)
+    llama_snapshot = baseline_dir / "llama.json"
+    anthropic_snapshot = baseline_dir / "anthropic.json"
+    assert llama_snapshot.exists()
+    assert anthropic_snapshot.exists()
+
+    llama_hash = hashlib.sha256((DATA / "smoke-llama" / "prompt-baselines.json").read_bytes()).hexdigest()
+    llama_rows = [row for row in rows if row["provider"] == "llama"]
+    assert all(row["promptBaselineHash"] == llama_hash for row in llama_rows)
+    assert json.loads(llama_snapshot.read_text(encoding="utf-8"))["baselines"]["readiness"]["chars"] == 120
 
 
 def test_missing_results_file_is_skipped(tmp_path):
@@ -45,6 +70,8 @@ def test_missing_test_xml_keeps_recorder_outcome(tmp_path):
     assert rows[0]["firstAttemptOutcome"] == "fail"
     assert rows[0]["finalOutcome"] == "fail"
     assert rows[0]["recoveredOnRetry"] is False
+    assert rows[0]["promptBaselinePresent"] is False
+    assert rows[0]["promptBaselineHash"] is None
 
 
 def test_row_without_outcome_does_not_crash(tmp_path):
@@ -65,6 +92,28 @@ def test_malformed_line_is_skipped(tmp_path):
     )
     rows = consolidate(tmp_path, "r")
     assert len(rows) == 1  # the bad line is skipped, the good one kept
+
+
+def test_skips_baseline_snapshot_for_provider_without_valid_rows(tmp_path):
+    malformed = tmp_path / "smoke-malformed"
+    malformed.mkdir()
+    (malformed / "smoke-results.jsonl").write_text("{not valid json\n", encoding="utf-8")
+    (malformed / "prompt-baselines.json").write_text('{"provider":"malformed"}\n', encoding="utf-8")
+
+    valid = tmp_path / "smoke-valid"
+    valid.mkdir()
+    (valid / "smoke-results.jsonl").write_text(
+        json.dumps({"testClass": "T", "testMethod": "m()", "outcome": "pass"}) + "\n",
+        encoding="utf-8",
+    )
+    (valid / "prompt-baselines.json").write_text('{"provider":"valid"}\n', encoding="utf-8")
+
+    baseline_dir = tmp_path / "baselines"
+    rows = consolidate(tmp_path, "r", baseline_dir)
+
+    assert len(rows) == 1
+    assert (baseline_dir / "valid.json").exists()
+    assert not (baseline_dir / "malformed.json").exists()
 
 
 def test_retry_recovery_fields(tmp_path):
