@@ -87,6 +87,10 @@ def _copy_baseline_snapshot(provider_dir: Path, baseline_output_dir: Path | None
         shutil.copy2(baseline, baseline_output_dir / f"{_provider_name(provider_dir)}.json")
 
 
+def _attempt_number(path: Path) -> int:
+    return int(path.stem.rsplit("_", 1)[-1])
+
+
 def consolidate(
     artifacts_dir: Path,
     run_id: str,
@@ -99,6 +103,15 @@ def consolidate(
         if not jsonl.exists():
             sys.stderr.write(f"  {pd.name}: no smoke-results.jsonl — excluded (no-data)\n")
             continue
+
+        xml_files = sorted(pd.glob("test_attempts/attempt_*.xml"), key=_attempt_number)
+
+        test_verdicts: dict[tuple[str, str], list[str]] = {}
+        for xf in xml_files:
+            vd = _junit_outcomes(xf)
+            for k, v in vd.items():
+                test_verdicts.setdefault(k, []).append(v)
+
         verdicts = _junit_outcomes(pd / "test.xml")
         baseline_meta = _baseline_meta(pd)
         n = 0
@@ -110,17 +123,34 @@ def consolidate(
             except json.JSONDecodeError as e:
                 sys.stderr.write(f"  {pd.name}: skipping malformed line {lineno}: {e}\n")
                 continue
-            first_attempt = row.get("outcome", "unknown")
-            final_verdict = verdicts.get((row.get("testClass", ""), _norm(row.get("testMethod", ""))))
-            if final_verdict is not None:
-                row["outcome"] = final_verdict  # authoritative final verdict, post-retry
-            # Field names track bpmner-smoke-history#8. attemptCount is intentionally omitted: the
-            # true count lives in Bazel's test_attempts/**, which the bpmner workflow does not upload
-            # yet (only smoke-results.jsonl + test.xml). recoveredOnRetry is the most we can derive.
-            final = row.get("outcome", first_attempt)  # .get: a row may carry no outcome at all
-            row["firstAttemptOutcome"] = first_attempt
+
+            key = (row.get("testClass", ""), _norm(row.get("testMethod", "")))
+            v_hist = test_verdicts.get(key, [])
+            recorder_outcome = row.get("outcome", "unknown")
+            final_verdict = verdicts.get(key)
+            final = final_verdict if final_verdict is not None else recorder_outcome
+
+            row["outcome"] = final
+            row["firstAttemptOutcome"] = recorder_outcome
             row["finalOutcome"] = final
-            row["recoveredOnRetry"] = first_attempt == "fail" and final == "pass"
+
+            if recorder_outcome == "pass":
+                row["attemptCount"] = 1
+                row["retried"] = False
+                row["recoveredOnRetry"] = False
+            else:
+                if v_hist:
+                    row["retried"] = len(v_hist) > 1 or recorder_outcome != final
+                    row["attemptCount"] = max(len(v_hist), 2 if row["retried"] else 1)
+                else:
+                    if recorder_outcome != final:
+                        row["attemptCount"] = 2
+                        row["retried"] = True
+                    else:
+                        row["attemptCount"] = 1
+                        row["retried"] = False
+                row["recoveredOnRetry"] = row["retried"] and final == "pass"
+
             row["runId"] = run_id
             row.update(baseline_meta)
             rows.append(row)

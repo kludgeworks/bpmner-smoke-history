@@ -24,6 +24,8 @@ def test_reconciles_flake_to_final_verdict():
     assert flake["outcome"] == "pass"
     assert flake["firstAttemptOutcome"] == "fail"
     assert flake["finalOutcome"] == "pass"
+    assert flake["attemptCount"] == 2
+    assert flake["retried"] is True
     assert flake["recoveredOnRetry"] is True
 
 
@@ -69,6 +71,8 @@ def test_missing_test_xml_keeps_recorder_outcome(tmp_path):
     assert rows[0]["outcome"] == "fail"  # unchanged — no XML to override it
     assert rows[0]["firstAttemptOutcome"] == "fail"
     assert rows[0]["finalOutcome"] == "fail"
+    assert rows[0]["attemptCount"] == 1
+    assert rows[0]["retried"] is False
     assert rows[0]["recoveredOnRetry"] is False
     assert rows[0]["promptBaselinePresent"] is False
     assert rows[0]["promptBaselineHash"] is None
@@ -81,6 +85,8 @@ def test_row_without_outcome_does_not_crash(tmp_path):
     assert len(rows) == 1
     assert rows[0]["firstAttemptOutcome"] == "unknown"
     assert rows[0]["finalOutcome"] == "unknown"
+    assert rows[0]["attemptCount"] == 1
+    assert rows[0]["retried"] is False
     assert rows[0]["recoveredOnRetry"] is False
 
 
@@ -141,6 +147,8 @@ def test_retry_recovery_fields(tmp_path):
     assert recovered["outcome"] == "pass"  # backward-compatible: final verdict
     assert recovered["firstAttemptOutcome"] == "fail"  # recorder's first-attempt view
     assert recovered["finalOutcome"] == "pass"  # authoritative XML verdict
+    assert recovered["attemptCount"] == 2
+    assert recovered["retried"] is True
     assert recovered["recoveredOnRetry"] is True
     assert recovered["runId"] == "r42"
 
@@ -148,4 +156,66 @@ def test_retry_recovery_fields(tmp_path):
     assert stable["outcome"] == "pass"
     assert stable["firstAttemptOutcome"] == "pass"
     assert stable["finalOutcome"] == "pass"
+    assert stable["attemptCount"] == 1
+    assert stable["retried"] is False
     assert stable["recoveredOnRetry"] is False
+
+
+def test_retry_with_test_attempts(tmp_path):
+    p = tmp_path / "smoke-attempts"
+    p.mkdir()
+    (p / "smoke-results.jsonl").write_text(
+        json.dumps({"testClass": "AttemptTest", "testMethod": "flaky()", "outcome": "fail"}) + "\n",
+        encoding="utf-8",
+    )
+    (p / "test.xml").write_text(
+        '<testsuite tests="1"><testcase classname="AttemptTest" name="flaky()"></testcase></testsuite>',
+        encoding="utf-8",
+    )
+    attempts_dir = p / "test_attempts"
+    attempts_dir.mkdir()
+    (attempts_dir / "attempt_1.xml").write_text(
+        '<testsuite tests="1">'
+        '<testcase classname="AttemptTest" name="flaky()"><failure/></testcase>'
+        "</testsuite>",
+        encoding="utf-8",
+    )
+    (attempts_dir / "attempt_2.xml").write_text(
+        '<testsuite tests="1"><testcase classname="AttemptTest" name="flaky()"></testcase></testsuite>',
+        encoding="utf-8",
+    )
+
+    rows = consolidate(tmp_path, "r42")
+
+    assert len(rows) == 1
+    assert rows[0]["attemptCount"] == 2
+    assert rows[0]["retried"] is True
+    assert rows[0]["recoveredOnRetry"] is True
+
+
+def test_retry_with_partial_test_attempts_falls_back_to_final_mismatch(tmp_path):
+    p = tmp_path / "smoke-attempts"
+    p.mkdir()
+    (p / "smoke-results.jsonl").write_text(
+        json.dumps({"testClass": "AttemptTest", "testMethod": "flaky()", "outcome": "fail"}) + "\n",
+        encoding="utf-8",
+    )
+    (p / "test.xml").write_text(
+        '<testsuite tests="1"><testcase classname="AttemptTest" name="flaky()"></testcase></testsuite>',
+        encoding="utf-8",
+    )
+    attempts_dir = p / "test_attempts"
+    attempts_dir.mkdir()
+    (attempts_dir / "attempt_1.xml").write_text(
+        '<testsuite tests="1">'
+        '<testcase classname="AttemptTest" name="flaky()"><failure/></testcase>'
+        "</testsuite>",
+        encoding="utf-8",
+    )
+
+    rows = consolidate(tmp_path, "r42")
+
+    assert len(rows) == 1
+    assert rows[0]["attemptCount"] == 2
+    assert rows[0]["retried"] is True
+    assert rows[0]["recoveredOnRetry"] is True
