@@ -6,12 +6,12 @@ _Report-only · all recorded runs · provider = model family under test._
 
 | Provider | Model | Runs | Pass % | Fails | $/run | Tokens |
 |---|---|---:|---:|---:|---:|---:|
-| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 24 | 94.2 | 8 | n/a* | 3657283 |
-| deepseek | `deepseek-chat` | 16 | 87.7 | 10 | $0.0444 | 4371571 |
-| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 24 | 100.0 | 0 | $0.4465 | 6785504 |
-| llama | `meta-llama/llama-3.3-70b-instruct` | 24 | 92.8 | 10 | $0.2367 | 6437332 |
-| mistral | `mistral-large-2411,mistral-small-2506` | 24 | 98.4 | 2 | $0.4492 | 9258193 |
-| openai | `gpt-4.1-mini,gpt-4.1` | 24 | 97.1 | 4 | $0.5117 | 6630312 |
+| anthropic | `claude-haiku-4-5,claude-sonnet-4-6` | 25 | 94.6 | 8 | n/a* | 3868239 |
+| deepseek | `deepseek-chat` | 17 | 88.5 | 10 | $0.0448 | 4682349 |
+| gemini | `gemini-2.5-flash,gemini-2.5-pro` | 25 | 100.0 | 0 | $0.4447 | 7029788 |
+| llama | `meta-llama/llama-3.3-70b-instruct` | 25 | 93.1 | 10 | $0.2360 | 6685083 |
+| mistral | `mistral-large-2411,mistral-small-2506` | 25 | 98.5 | 2 | $0.4436 | 9490194 |
+| openai | `gpt-4.1-mini,gpt-4.1` | 25 | 97.3 | 4 | $0.5287 | 7108068 |
 
 _\* cost unknown — provider has no configured pricing._
 
@@ -19,20 +19,20 @@ _\* cost unknown — provider has no configured pricing._
 
 | Test | Fail % | Providers failed | Samples |
 |---|---:|---|---:|
-| `error boundary event()` | 43.5 | 4 (anthropic, deepseek, llama, openai) | 23 |
-| `event-based gateway()` | 21.7 | 2 (llama, openai) | 23 |
-| `escalation end()` | 17.4 | 2 (anthropic, deepseek) | 23 |
-| `standard loop activity()` | 13.0 | 2 (anthropic, deepseek) | 23 |
-| `intermediate signal throw()` | 9.1 | 1 (llama) | 22 |
-| `parallel gateway()` | 8.7 | 1 (llama) | 23 |
-| `signal end()` | 4.5 | 1 (llama) | 22 |
-| `event subprocess()` | 4.3 | 1 (mistral) | 23 |
-| `exclusive gateway()` | 4.3 | 1 (anthropic) | 23 |
-| `intermediate escalation throw()` | 4.3 | 1 (deepseek) | 23 |
-| `intermediate message throw()` | 4.3 | 1 (llama) | 23 |
-| `script task()` | 4.3 | 1 (anthropic) | 23 |
-| `terminate end()` | 4.3 | 1 (openai) | 23 |
-| `timer boundary event()` | 4.3 | 1 (mistral) | 23 |
+| `error boundary event()` | 41.7 | 4 (anthropic, deepseek, llama, openai) | 24 |
+| `event-based gateway()` | 20.8 | 2 (llama, openai) | 24 |
+| `escalation end()` | 16.7 | 2 (anthropic, deepseek) | 24 |
+| `standard loop activity()` | 12.5 | 2 (anthropic, deepseek) | 24 |
+| `intermediate signal throw()` | 8.7 | 1 (llama) | 23 |
+| `parallel gateway()` | 8.3 | 1 (llama) | 24 |
+| `signal end()` | 4.3 | 1 (llama) | 23 |
+| `event subprocess()` | 4.2 | 1 (mistral) | 24 |
+| `exclusive gateway()` | 4.2 | 1 (anthropic) | 24 |
+| `intermediate escalation throw()` | 4.2 | 1 (deepseek) | 24 |
+| `intermediate message throw()` | 4.2 | 1 (llama) | 24 |
+| `script task()` | 4.2 | 1 (anthropic) | 24 |
+| `terminate end()` | 4.2 | 1 (openai) | 24 |
+| `timer boundary event()` | 4.2 | 1 (mistral) | 24 |
 
 ## Failure categories
 
@@ -48,8 +48,8 @@ _`deterministic` = harness/config failure (e.g. context load); `classification` 
 | llama | deterministic | 2 | 20.0 | event-based gateway()::RECEIVE (act-wait-for-response) requires messageName |
 | mistral | deterministic | 1 | 50.0 | event subprocess()::EVENT_GATEWAY (br-no-cancel) requires triggerKind |
 | mistral | infra | 1 | 50.0 | timer boundary event()::timer boundary event() timed out after 240 seconds |
-| openai | classification | 2 | 50.0 | error boundary event()::Expected an activity carrying a ERROR boundary event,… |
 | openai | deterministic | 2 | 50.0 | event-based gateway()::RECEIVE (act-await-response) requires messageName |
+| openai | classification | 2 | 50.0 | error boundary event()::Expected an activity carrying a ERROR boundary event,… |
 
 ## Stage breakdown
 
@@ -57,18 +57,18 @@ _Per-pipeline-stage model and token usage (readiness vs extraction)._
 
 | Provider | Stage | Model | Prompt tokens | Completion tokens | LLM calls | Samples |
 |---|---|---|---:|---:|---:|---:|
-| anthropic | ProcessInputAssessment | `claude-haiku-4-5` | 1130631 | 935094 | 429 | 139 |
-| anthropic | ValidatedProcessContract | `claude-sonnet-4-6` | 1159780 | 252030 | 268 | 139 |
-| deepseek | ProcessInputAssessment | `deepseek-chat` | 673911 | 487890 | 294 | 81 |
-| deepseek | ValidatedProcessContract | `deepseek-chat` | 2885594 | 135236 | 182 | 81 |
-| gemini | ProcessInputAssessment | `gemini-2.5-flash` | 1048623 | 771882 | 426 | 131 |
-| gemini | ValidatedProcessContract | `gemini-2.5-pro` | 4477954 | 259966 | 268 | 131 |
-| llama | ProcessInputAssessment | `meta-llama/llama-3.3-70b-instruct` | 966105 | 399063 | 432 | 139 |
-| llama | ValidatedProcessContract | `meta-llama/llama-3.3-70b-instruct` | 4776012 | 167920 | 314 | 139 |
-| mistral | ProcessInputAssessment | `mistral-small-2506` | 3043116 | 1556328 | 1308 | 126 |
-| mistral | ValidatedProcessContract | `mistral-large-2411` | 4240144 | 250122 | 268 | 126 |
-| openai | ProcessInputAssessment | `gpt-4.1-mini` | 1051815 | 631557 | 474 | 140 |
-| openai | ValidatedProcessContract | `gpt-4.1` | 4589430 | 191814 | 300 | 140 |
+| anthropic | ProcessInputAssessment | `claude-haiku-4-5` | 1130631 | 935094 | 429 | 147 |
+| anthropic | ValidatedProcessContract | `claude-sonnet-4-6` | 1230518 | 265870 | 284 | 147 |
+| deepseek | ProcessInputAssessment | `deepseek-chat` | 673911 | 487890 | 294 | 87 |
+| deepseek | ValidatedProcessContract | `deepseek-chat` | 3078152 | 145372 | 194 | 87 |
+| gemini | ProcessInputAssessment | `gemini-2.5-flash` | 1048623 | 771882 | 426 | 136 |
+| gemini | ValidatedProcessContract | `gemini-2.5-pro` | 4647176 | 271158 | 278 | 136 |
+| llama | ProcessInputAssessment | `meta-llama/llama-3.3-70b-instruct` | 966105 | 399063 | 432 | 144 |
+| llama | ValidatedProcessContract | `meta-llama/llama-3.3-70b-instruct` | 4960494 | 173322 | 326 | 144 |
+| mistral | ProcessInputAssessment | `mistral-small-2506` | 3043116 | 1556328 | 1308 | 130 |
+| mistral | ValidatedProcessContract | `mistral-large-2411` | 4368428 | 255988 | 276 | 130 |
+| openai | ProcessInputAssessment | `gpt-4.1-mini` | 1051815 | 631557 | 474 | 146 |
+| openai | ValidatedProcessContract | `gpt-4.1` | 4959076 | 206906 | 324 | 146 |
 
 ## LLM efficiency
 
@@ -76,12 +76,12 @@ _Distribution of LLM API calls per test — more calls may indicate retries or t
 
 | Provider | Min | Avg | Median | P95 | Max | σ | Samples |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| anthropic | 0 | 5.3 | 5 | 8 | 14 | 1.7 | 139 |
-| deepseek | 5 | 6.5 | 5 | 11 | 20 | 3.0 | 81 |
-| gemini | 5 | 5.7 | 5 | 8 | 20 | 2.0 | 131 |
-| llama | 5 | 5.7 | 5 | 8 | 15 | 1.6 | 139 |
-| mistral | 5 | 12.9 | 8 | 36 | 69 | 11.0 | 126 |
-| openai | 5 | 5.9 | 5 | 10 | 23 | 2.3 | 140 |
+| anthropic | 0 | 5.3 | 5 | 8 | 14 | 1.6 | 147 |
+| deepseek | 5 | 6.5 | 5 | 11 | 20 | 2.9 | 87 |
+| gemini | 5 | 5.7 | 5 | 8 | 20 | 2.0 | 136 |
+| llama | 5 | 5.7 | 5 | 8 | 15 | 1.6 | 144 |
+| mistral | 5 | 12.8 | 8 | 35 | 69 | 10.8 | 130 |
+| openai | 5 | 6.0 | 5 | 10 | 23 | 2.6 | 146 |
 
 ## Latency
 
