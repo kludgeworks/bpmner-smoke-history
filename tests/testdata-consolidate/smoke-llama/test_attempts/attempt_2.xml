@@ -1,0 +1,9 @@
+<!--
+Copyright 2026 The Project Contributors
+SPDX-License-Identifier: MIT
+Second attempt: extractsBoundaryEvent passed.
+--><testsuite errors="0" failures="0" name="ContractVocabularySmokeTest" skipped="0" tests="3">
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsServiceTask()"></testcase>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsBoundaryEvent()"></testcase>
+  <testcase classname="dev.groknull.bpmner.smoke.ContractVocabularySmokeTest" name="extractsParallelGateway()"></testcase>
+</testsuite>

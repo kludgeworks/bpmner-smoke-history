@@ -20,7 +20,9 @@ logged (we cannot reconcile without the XML); a malformed JSONL line is skipped 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import shutil
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -54,7 +56,46 @@ def _junit_outcomes(xml_path: Path) -> dict[tuple[str, str], str]:
     return out
 
 
-def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _provider_name(provider_dir: Path) -> str:
+    return provider_dir.name.removeprefix("smoke-")
+
+
+def _baseline_meta(provider_dir: Path) -> dict[str, object]:
+    baseline = provider_dir / "prompt-baselines.json"
+    if not baseline.exists():
+        return {
+            "promptBaselinePresent": False,
+            "promptBaselineHash": None,
+        }
+    digest = _sha256(baseline)
+    return {
+        "promptBaselinePresent": True,
+        "promptBaselineHash": digest,
+    }
+
+
+def _copy_baseline_snapshot(provider_dir: Path, baseline_output_dir: Path | None) -> None:
+    baseline = provider_dir / "prompt-baselines.json"
+    if not baseline.exists():
+        return
+    if baseline_output_dir is not None:
+        baseline_output_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(baseline, baseline_output_dir / f"{_provider_name(provider_dir)}.json")
+
+
+def _attempt_number(path: Path) -> int:
+    return int(path.stem.rsplit("_", 1)[-1])
+
+
+def consolidate(
+    artifacts_dir: Path,
+    run_id: str,
+    baseline_output_dir: Path | None = None,
+) -> list[dict]:
     rows: list[dict] = []
     provider_dirs = sorted(d for d in Path(artifacts_dir).glob("smoke-*") if d.is_dir())
     for pd in provider_dirs:
@@ -63,16 +104,16 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
             sys.stderr.write(f"  {pd.name}: no smoke-results.jsonl — excluded (no-data)\n")
             continue
 
-        xml_files = sorted(pd.glob("test_attempts/attempt_*.xml"), key=lambda p: p.name)
+        xml_files = sorted(pd.glob("test_attempts/attempt_*.xml"), key=_attempt_number)
 
         test_verdicts: dict[tuple[str, str], list[str]] = {}
         for xf in xml_files:
-            if xf.exists():
-                vd = _junit_outcomes(xf)
-                for k, v in vd.items():
-                    test_verdicts.setdefault(k, []).append(v)
+            vd = _junit_outcomes(xf)
+            for k, v in vd.items():
+                test_verdicts.setdefault(k, []).append(v)
 
         verdicts = _junit_outcomes(pd / "test.xml")
+        baseline_meta = _baseline_meta(pd)
         n = 0
         for lineno, line in enumerate(jsonl.read_text(encoding="utf-8").splitlines(), start=1):
             if not line.strip():
@@ -99,8 +140,8 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
                 row["recoveredOnRetry"] = False
             else:
                 if v_hist:
-                    row["attemptCount"] = len(v_hist) + 1
-                    row["retried"] = True
+                    row["attemptCount"] = len(v_hist)
+                    row["retried"] = len(v_hist) > 1
                 else:
                     if recorder_outcome != final:
                         row["attemptCount"] = 2
@@ -111,9 +152,11 @@ def consolidate(artifacts_dir: Path, run_id: str) -> list[dict]:
                 row["recoveredOnRetry"] = row["retried"] and final == "pass"
 
             row["runId"] = run_id
+            row.update(baseline_meta)
             rows.append(row)
             n += 1
-
+        if n:
+            _copy_baseline_snapshot(pd, baseline_output_dir)
         if n and not verdicts:
             sys.stderr.write(f"  {pd.name}: test.xml missing/unreadable — kept {n} recorder rows\n")
         else:
@@ -133,8 +176,10 @@ def main() -> None:
     ap.add_argument("artifacts_dir", help="dir of downloaded smoke-<provider>/ artifacts")
     ap.add_argument("run_id", help="Actions run id (stamped onto every row as runId)")
     ap.add_argument("-o", "--output", required=True, help="output JSONL path")
+    ap.add_argument("--baseline-output-dir", help="optional dir for per-provider prompt baseline snapshots")
     args = ap.parse_args()
-    _write(consolidate(Path(args.artifacts_dir), args.run_id), Path(args.output))
+    baseline_output_dir = Path(args.baseline_output_dir) if args.baseline_output_dir else None
+    _write(consolidate(Path(args.artifacts_dir), args.run_id, baseline_output_dir), Path(args.output))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+{
+  "_doc": "test baseline",
+  "baselines": {
+    "readiness": {
+      "chars": 120,
+      "updatedBy": "test",
+      "reason": "fixture"
+    }
+  }
+}
