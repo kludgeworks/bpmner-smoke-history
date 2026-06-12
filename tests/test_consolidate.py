@@ -191,3 +191,31 @@ def test_retry_with_test_attempts(tmp_path):
     assert rows[0]["attemptCount"] == 2
     assert rows[0]["retried"] is True
     assert rows[0]["recoveredOnRetry"] is True
+
+
+def test_retry_with_partial_test_attempts_falls_back_to_final_mismatch(tmp_path):
+    p = tmp_path / "smoke-attempts"
+    p.mkdir()
+    (p / "smoke-results.jsonl").write_text(
+        json.dumps({"testClass": "AttemptTest", "testMethod": "flaky()", "outcome": "fail"}) + "\n",
+        encoding="utf-8",
+    )
+    (p / "test.xml").write_text(
+        '<testsuite tests="1"><testcase classname="AttemptTest" name="flaky()"></testcase></testsuite>',
+        encoding="utf-8",
+    )
+    attempts_dir = p / "test_attempts"
+    attempts_dir.mkdir()
+    (attempts_dir / "attempt_1.xml").write_text(
+        '<testsuite tests="1">'
+        '<testcase classname="AttemptTest" name="flaky()"><failure/></testcase>'
+        "</testsuite>",
+        encoding="utf-8",
+    )
+
+    rows = consolidate(tmp_path, "r42")
+
+    assert len(rows) == 1
+    assert rows[0]["attemptCount"] == 2
+    assert rows[0]["retried"] is True
+    assert rows[0]["recoveredOnRetry"] is True

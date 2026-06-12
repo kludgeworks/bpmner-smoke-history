@@ -140,8 +140,8 @@ def consolidate(
                 row["recoveredOnRetry"] = False
             else:
                 if v_hist:
-                    row["attemptCount"] = len(v_hist)
-                    row["retried"] = len(v_hist) > 1
+                    row["retried"] = len(v_hist) > 1 or recorder_outcome != final
+                    row["attemptCount"] = max(len(v_hist), 2 if row["retried"] else 1)
                 else:
                     if recorder_outcome != final:
                         row["attemptCount"] = 2
