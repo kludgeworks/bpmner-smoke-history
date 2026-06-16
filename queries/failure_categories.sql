@@ -19,4 +19,5 @@ SELECT
 FROM results
 WHERE outcome = 'fail'
 GROUP BY provider, coalesce(failureCategory, 'infra')
-ORDER BY provider ASC, failures DESC;
+-- failureCategory breaks ties when two categories have equal counts, so row order is deterministic.
+ORDER BY provider ASC, failures DESC, failureCategory ASC;

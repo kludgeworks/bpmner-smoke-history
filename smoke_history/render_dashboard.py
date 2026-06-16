@@ -95,8 +95,8 @@ def _model_family(served_models: object) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _write_pair(assets_dir: Path, name: str, make: Callable[[charts.Theme], str]) -> str:
-    """Write the light + dark SVG variants of a chart and return the assets-dir posix path for linking.
+def _write_pair(assets_dir: Path, name: str, make: Callable[[charts.Theme], str]) -> None:
+    """Write the light + dark SVG variants of a chart.
 
     Every chart is emitted twice so the <picture> block can serve the right one per the reader's color
     scheme; the trailing newline keeps the end-of-file-fixer happy on every regeneration.
@@ -104,7 +104,6 @@ def _write_pair(assets_dir: Path, name: str, make: Callable[[charts.Theme], str]
     assets_dir.mkdir(parents=True, exist_ok=True)
     for theme_name, theme in THEMES.items():
         (assets_dir / f"{name}-{theme_name}.svg").write_text(make(theme) + "\n", encoding="utf-8")
-    return assets_dir.as_posix()
 
 
 def _picture(base: str, name: str, alt: str) -> list[str]:
@@ -119,7 +118,7 @@ def _picture(base: str, name: str, alt: str) -> list[str]:
 
 def _pct_label(pct: float) -> str:
     """Format a pass rate for prose: 100.0 → "100", 98.5 → "98.5"."""
-    return f"{pct:g}"
+    return f"{float(pct):g}"
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +194,7 @@ def _trend_section(
         run_ts.setdefault(str(r["runId"]), str(r["run_ts"]))
         points.setdefault(r["provider"], {})[str(r["runId"])] = v
 
-    runs = sorted(run_ts, key=lambda rid: run_ts[rid])
+    runs = sorted(run_ts, key=lambda rid: (run_ts[rid], rid))  # runId breaks any run_ts tie deterministically
     if len(runs) < 2 or not points:
         return []
 
@@ -496,7 +495,7 @@ def _cost_per_test(r: dict) -> float | None:
     Providers run rotating shards (4–8 tests/run), so raw per-run totals conflate per-test cost with
     shard size; normalising to cost-per-test makes runs comparable. Unpriced providers are dropped.
     """
-    if not r["cost_known"]:
+    if not r["cost_known"] or r["total_cost"] is None:
         return None
     tests = r["tests_in_run"] or 0
     if not tests:
