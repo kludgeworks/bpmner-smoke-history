@@ -105,10 +105,20 @@ def test_llm_efficiency_callout_handles_single_provider(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
     rows = [
-        {"provider": "openai", "testMethod": f"t{i}", "outcome": "pass", "runComplete": True,
-         "runId": "1", "ts": "2026-06-05T10:00:0%dZ" % i, "llmCallCount": 5 + i,
-         "servedModel": "gpt-4.1", "costUsd": 0.01, "costKnown": "priced",
-         "promptTokens": 100, "completionTokens": 20}
+        {
+            "provider": "openai",
+            "testMethod": f"t{i}",
+            "outcome": "pass",
+            "runComplete": True,
+            "runId": "1",
+            "ts": f"2026-06-05T10:00:0{i}Z",
+            "llmCallCount": 5 + i,
+            "servedModel": "gpt-4.1",
+            "costUsd": 0.01,
+            "costKnown": "priced",
+            "promptTokens": 100,
+            "completionTokens": 20,
+        }
         for i in range(4)
     ]
     (data / "run.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
@@ -117,6 +127,9 @@ def test_llm_efficiency_callout_handles_single_provider(tmp_path):
     assert "Every other provider" not in md
     assert "median of 0" not in md
     assert "`openai` ran a median of" in md
+
+
+def test_unicode_bar_is_fixed_width_and_proportional():
     # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
     assert unicode_bar(1.0, 14) == "█" * 14
     assert unicode_bar(0.0, 14) == "░" * 14
