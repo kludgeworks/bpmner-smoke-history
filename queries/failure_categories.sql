@@ -19,5 +19,5 @@ SELECT
 FROM results
 WHERE outcome = 'fail'
 GROUP BY provider, coalesce(failureCategory, 'infra')
--- failureCategory breaks ties when two categories have equal counts, so row order is deterministic.
-ORDER BY provider ASC, failures DESC, failureCategory ASC;
+-- Surface the biggest failure buckets first; provider/category break ties so row order is deterministic.
+ORDER BY failures DESC, pct_of_provider_failures DESC, provider ASC, failureCategory ASC;
