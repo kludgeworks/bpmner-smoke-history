@@ -364,16 +364,24 @@ def _llm_efficiency_section(con: duckdb.DuckDBPyConnection, assets: Path, base: 
 
     outlier = max(data, key=lambda d: d["p95"] or 0)
     others = [d for d in data if d is not outlier]
-    common_median = 0
+    prov = outlier["provider"]
+    med, p95, mx = (int(outlier[k] or 0) for k in ("median", "p95", "max"))
     if others:
+        # The "outlier vs. the rest" framing only holds with ≥2 providers; name the modal median of the rest.
         medians = [int(d["median"] or 0) for d in others]
         common_median = max(set(medians), key=medians.count)
-    callout = (
-        f"> `{outlier['provider']}` is the outlier — median {int(outlier['median'] or 0)} calls/test but a "
-        f"P95 of {int(outlier['p95'] or 0)} and a max of **{int(outlier['max'] or 0)}**, suggesting retry "
-        f"or tool-loop storms. Every other provider sits at a median of {common_median}."
-    )
-    alt = f"LLM calls per test by provider — {outlier['provider']} spread is far wider than the rest"
+        callout = (
+            f"> `{prov}` is the outlier — median {med} calls/test but a P95 of {p95} and a max of "
+            f"**{mx}**, suggesting retry or tool-loop storms. Every other provider sits at a median "
+            f"of {common_median}."
+        )
+        alt = f"LLM calls per test by provider — {prov} spread is far wider than the rest"
+    else:
+        callout = (
+            f"> `{prov}` ran a median of {med} LLM calls/test (P95 {p95}, max **{mx}**). More calls per "
+            "test point to retry or tool-loop storms."
+        )
+        alt = f"LLM calls per test — {prov}: median {med}, P95 {p95}, max {mx}"
     _write_pair(assets, "llm-efficiency", lambda t: charts.llm_efficiency_svg(data, t))
     return ["## LLM efficiency", "", "> [!IMPORTANT]", callout, "", *_picture(base, "llm-efficiency", alt)]
 

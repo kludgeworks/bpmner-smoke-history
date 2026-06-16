@@ -100,7 +100,23 @@ def test_cli_output_ends_with_exactly_one_newline(capsys, monkeypatch):
     assert out.endswith("\n") and not out.endswith("\n\n")
 
 
-def test_unicode_bar_is_fixed_width_and_proportional():
+def test_llm_efficiency_callout_handles_single_provider(tmp_path):
+    # Only one provider has llmCallCount data: the callout must not claim "every other provider".
+    data = tmp_path / "data"
+    data.mkdir()
+    rows = [
+        {"provider": "openai", "testMethod": f"t{i}", "outcome": "pass", "runComplete": True,
+         "runId": "1", "ts": "2026-06-05T10:00:0%dZ" % i, "llmCallCount": 5 + i,
+         "servedModel": "gpt-4.1", "costUsd": 0.01, "costKnown": "priced",
+         "promptTokens": 100, "completionTokens": 20}
+        for i in range(4)
+    ]
+    (data / "run.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    md = render(data, assets_dir=tmp_path / "assets")
+    assert "## LLM efficiency" in md
+    assert "Every other provider" not in md
+    assert "median of 0" not in md
+    assert "`openai` ran a median of" in md
     # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
     assert unicode_bar(1.0, 14) == "█" * 14
     assert unicode_bar(0.0, 14) == "░" * 14
