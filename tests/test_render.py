@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from smoke_history.render_dashboard import main, render
+from smoke_history.render_dashboard import main, render, unicode_bar
 
 DATA = Path(__file__).parent / "testdata"
 
@@ -11,16 +11,35 @@ DATA = Path(__file__).parent / "testdata"
 def test_renders_scorecard_rows():
     md = render(DATA)
     assert "## Provider scorecard" in md
-    assert "| anthropic |" in md
-    assert "| llama |" in md
+    # Providers are rendered as code spans in the full table now.
+    assert "| `anthropic` |" in md
+    assert "| `llama` |" in md
+
+
+def test_emits_summary_note_and_footnote():
+    md = render(DATA)
+    assert md.startswith("# 🔬 Smoke Health")
+    assert "> [!NOTE]" in md
+    # The homepage owns the whole file, so the pointer to the moved docs must be generated, not hand-added.
+    assert "[`ABOUT.md`](ABOUT.md)" in md
+    assert "Machine-managed — do not edit by hand." in md
+
+
+def _flaky_row(md: str) -> str:
+    # The flaky table cell wraps the whole test name in backticks ("`name`"); the failure-detail table
+    # only ever shows it as a signature prefix ("`name::…"), so the closing backtick disambiguates.
+    return next(line for line in md.splitlines() if "`extractsBoundaryEvent`" in line)
 
 
 def test_flags_cross_provider_flaky_test():
-    md = render(DATA)
-    row = next((line for line in md.splitlines() if "extractsBoundaryEvent" in line), "")
-    assert row, "expected a flaky-table row for extractsBoundaryEvent"
+    row = _flaky_row(render(DATA))
     # it fails on both gemini and llama in the fixtures (cross-provider)
     assert "gemini" in row and "llama" in row
+
+
+def test_flaky_rate_uses_unicode_bar():
+    row = _flaky_row(render(DATA))
+    assert "░" in row or "█" in row, "flaky fail-rate column should render a unicode bar"
 
 
 def test_empty_dir_renders_placeholder(tmp_path):
@@ -36,50 +55,57 @@ def test_only_partial_rows_renders_placeholder(tmp_path):
     assert "No completed runs" in render(tmp_path)
 
 
-def test_renders_stage_breakdown():
-    md = render(DATA)
-    # Stage breakdown only renders if the data has stageBreakdown columns.
-    # The testdata fixtures pre-date this field, so it should NOT render.
-    # When testdata is updated with stageBreakdown, flip this assertion.
-    assert "## Stage breakdown" not in md or "ProcessInputAssessment" in md
-
-
-def test_renders_llm_efficiency():
-    md = render(DATA)
-    # LLM efficiency only renders if the data has llmCallCount.
-    # The testdata fixtures pre-date this field, so it may not render.
-    if "## LLM efficiency" in md:
-        assert "Min" in md
-        assert "Median" in md
+def test_token_split_section_needs_assets():
+    # The token chart is chart-only, so without an assets dir the section is omitted entirely.
+    assert "## Token split" not in render(DATA)
 
 
 def test_renders_latency_chart_when_nonzero(tmp_path):
-    # Latency is a chart now (needs an assets dir + 2+ runs with non-zero llmTimeMs).
+    # Latency is a chart (needs an assets dir + 2+ runs with non-zero llmTimeMs).
     md = render(DATA, assets_dir=tmp_path / "assets" / "smoke-health")
     if "## Latency" in md:
-        assert "latency-trend.svg" in md
+        assert "latency-trend-light.svg" in md
+        assert "latency-trend-dark.svg" in md
 
 
 def test_renders_failure_categories():
     md = render(DATA)
-    # Failure categories only render if failing rows carry a failureCategory.
-    # The testdata fixtures may pre-date this field, so check conditionally.
-    if "## Failure categories" in md:
-        assert "Category" in md
+    # The fixtures carry failing rows with a failureCategory, so the detail table renders.
+    assert "## Failure categories" in md
+    assert "Sample signature" in md
 
 
-def test_assets_dir_generates_svgs(tmp_path):
+def test_picture_blocks_pair_light_and_dark(tmp_path):
     assets = tmp_path / "assets" / "smoke-health"
     md = render(DATA, assets_dir=assets)
-    # With only 2 runs in testdata, charts may or may not be generated.
-    # At minimum, the function should not error.
-    assert "# 🔬 Smoke Health" in md
+    # Every emitted chart is a <picture> pairing a dark <source> with a light <img> fallback.
+    assert md.count("<picture>") == md.count("prefers-color-scheme: dark")
+    assert (assets / "summary-light.svg").exists()
+    assert (assets / "summary-dark.svg").exists()
+
+
+def test_output_is_deterministic(tmp_path):
+    a = render(DATA, assets_dir=tmp_path / "a")
+    b = render(DATA, assets_dir=tmp_path / "a")  # same dir on purpose: identical links
+    assert a == b
+    assert a.endswith("\n") and not a.endswith("\n\n")
 
 
 def test_cli_output_ends_with_exactly_one_newline(capsys, monkeypatch):
-    # The dashboard is written via `python -m smoke_history.render_dashboard data > SMOKE_HEALTH.md`; the file
+    # The dashboard is written via `python -m smoke_history.render_dashboard data > README.md`; the file
     # must end with exactly one newline or end-of-file-fixer rejects it. Run main() in-process, check stdout.
     monkeypatch.setattr("sys.argv", ["render_dashboard", str(DATA)])
     main()
     out = capsys.readouterr().out
     assert out.endswith("\n") and not out.endswith("\n\n")
+
+
+def test_unicode_bar_is_fixed_width_and_proportional():
+    # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
+    assert unicode_bar(1.0, 14) == "█" * 14
+    assert unicode_bar(0.0, 14) == "░" * 14
+    assert len(unicode_bar(0.734, 14)) == 14
+    assert unicode_bar(0.5, 8) == "████░░░░"
+    # 12-cell flaky scale (callers pre-double the fraction); a quarter-bar uses the 2/8 block.
+    assert unicode_bar(0.25, 12) == "███░░░░░░░░░"
+    assert unicode_bar(0.44 * 2, 12) == "██████████▌░"

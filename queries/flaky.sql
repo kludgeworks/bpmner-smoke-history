@@ -13,5 +13,6 @@ SELECT
 FROM results
 GROUP BY testMethod
 HAVING count(DISTINCT provider) FILTER (WHERE outcome = 'fail') > 0
--- testMethod (the GROUP BY key) breaks ties so the order — and the renderer's top-N cap — is deterministic.
-ORDER BY providers_failed DESC, fail_pct DESC, testMethod ASC;
+-- Rank by fail rate (the dashboard surfaces the worst offenders first); providers_failed and the
+-- testMethod GROUP BY key break ties so the order — and the renderer's top-N cap — is deterministic.
+ORDER BY fail_pct DESC, providers_failed DESC, testMethod ASC;

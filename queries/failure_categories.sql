@@ -5,7 +5,9 @@
 -- Shows what kinds of failures dominate each provider and a sample signature for debugging.
 SELECT
     provider,
-    failureCategory,
+    -- Bucket an absent category as infra (the catch-all transport/timeout class) rather than dropping
+    -- the failure — the design's split has exactly three categories and every fail must land in one.
+    coalesce(failureCategory, 'infra') AS failureCategory,
     count(*) AS failures,
     round(
         100.0 * count(*)
@@ -16,5 +18,5 @@ SELECT
     min(failureSignature) AS sample_signature
 FROM results
 WHERE outcome = 'fail'
-GROUP BY provider, failureCategory
+GROUP BY provider, coalesce(failureCategory, 'infra')
 ORDER BY provider ASC, failures DESC;
