@@ -372,10 +372,10 @@ def test_nullable_failure_signal_json_columns_do_not_break_render(tmp_path):
                 "provider": "anthropic",
                 "servedModel": None,
                 "testMethod": "quotaSkip",
-                "outcome": "skip",
+                "outcome": "fail",
                 "failureCategory": "infra",
                 "failureSignal": None,
-                "failureSignature": None,
+                "failureSignature": "quota exceeded",
                 "message": "Assumption failed: credit balance is too low",
                 "costUsd": 0.0,
                 "costKnown": "unknown",
@@ -394,7 +394,7 @@ def test_nullable_failure_signal_json_columns_do_not_break_render(tmp_path):
                 "testMethod": "signal",
                 "outcome": "pass",
                 "failureCategory": None,
-                "failureSignal": None,
+                "failureSignal": {"some": "json"},
                 "failureSignature": None,
                 "message": None,
                 "costUsd": 0.01,
@@ -406,6 +406,26 @@ def test_nullable_failure_signal_json_columns_do_not_break_render(tmp_path):
                 "roleBreakdown": {"readiness-assessor": {"model": "gpt-4.1"}},
                 "runComplete": True,
             },
+            {
+                "ts": "2026-06-26T08:22:00Z",
+                "runId": "1",
+                "provider": "google",
+                "servedModel": "gemini",
+                "testMethod": "explicitNoSignal",
+                "outcome": "fail",
+                "failureCategory": "infra",
+                "failureSignal": "no_signal",
+                "failureSignature": "other failure",
+                "message": "API error",
+                "costUsd": 0.0,
+                "costKnown": "unknown",
+                "promptTokens": 0,
+                "completionTokens": 0,
+                "llmCallCount": 0,
+                "stageBreakdown": {},
+                "roleBreakdown": {},
+                "runComplete": True,
+            },
         ],
     )
 
@@ -413,6 +433,10 @@ def test_nullable_failure_signal_json_columns_do_not_break_render(tmp_path):
 
     assert "## Provider scorecard" in md
     assert "| `openai` |" in md
+    # Since quotaSkip and explicitNoSignal should be categorized as is_no_signal=True,
+    # they shouldn't show up as flaky tests.
+    assert "quotaSkip" not in md
+    assert "explicitNoSignal" not in md
 
 
 def test_unicode_bar_is_fixed_width_and_proportional():

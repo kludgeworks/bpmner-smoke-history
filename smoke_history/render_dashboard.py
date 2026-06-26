@@ -62,7 +62,7 @@ def _create_signal_results_view(con: duckdb.DuckDBPyConnection) -> None:
     columns = {row[0] for row in con.execute("DESCRIBE results").fetchall()}
 
     explicit = (
-        "lower(coalesce(CAST(failureSignal AS VARCHAR), '')) = 'no_signal'"
+        "lower(coalesce(CAST(failureSignal AS VARCHAR), '')) IN ('no_signal', '\"no_signal\"')"
         if "failureSignal" in columns
         else "false"
     )
