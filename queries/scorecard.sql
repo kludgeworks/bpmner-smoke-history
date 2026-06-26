@@ -1,7 +1,7 @@
 -- Copyright 2026 The Project Contributors
 -- SPDX-License-Identifier: MIT
 --
--- Per-provider scorecard over the `results` view (created by render_dashboard._load).
+-- Per-provider scorecard over the `signal_results` view (created by render_dashboard._load).
 -- runId (the dispatching Actions run id, stamped by consolidate) is the canonical per-run key.
 SELECT
     provider,
