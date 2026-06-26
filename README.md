@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/smoke-health/summary-dark.svg">
-  <img alt="6 providers · 84.1% average pass rate · 356 total failures · 34 flaky tests" src="assets/smoke-health/summary-light.svg" width="760">
+  <img alt="6 providers · 83.9% average pass rate · 356 total failures · 34 flaky tests" src="assets/smoke-health/summary-light.svg" width="760">
 </picture>
 
 > [!NOTE]
@@ -12,7 +12,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/smoke-health/scorecard-dark.svg">
-  <img alt="Pass rate by provider — mistral 99.4%, llama 94.3%, deepseek 90.5%, openai 90.5%, gemini 76.5%, anthropic 53.2%" src="assets/smoke-health/scorecard-light.svg" width="760">
+  <img alt="Pass rate by provider — mistral 99.4%, llama 94.4%, deepseek 90.7%, openai 90.6%, gemini 75.7%, anthropic 52.3%" src="assets/smoke-health/scorecard-light.svg" width="760">
 </picture>
 
 <details>
@@ -20,12 +20,12 @@
 
 | Provider | Pass rate | Fails | $/run | Tokens | Model family |
 |---|:--|--:|--:|--:|---|
-| `mistral` | `█████████████▉` 99.4% | 3 | $0.4770 | 28.72M | `mistral-large-2411, mistral-small-2506` |
-| `llama` | `█████████████▎` 94.3% | 26 | $0.2296 | 20.82M | `meta-llama/llama-3.3-70b-instruct` |
-| `deepseek` | `████████████▋░` 90.5% | 40 | $0.0500 | 23.52M | `deepseek-chat` |
-| `openai` | `████████████▋░` 90.5% | 47 | n/a | 21.52M | `gpt-4.1, gpt-4.1-mini` |
-| `gemini` | `██████████▊░░░` 76.5% | 63 | n/a | 19.80M | `gemini-2.5-flash, gemini-2.5-pro` |
-| `anthropic` | `███████▌░░░░░░` 53.2% | 177 | n/a | 7.16M | `claude-haiku-4-5, claude-sonnet-4-6` |
+| `mistral` | `█████████████▉` 99.4% | 3 | $0.4750 | 28.95M | `mistral-large-2411, mistral-small-2506` |
+| `llama` | `█████████████▎` 94.4% | 26 | $0.2293 | 21.06M | `meta-llama/llama-3.3-70b-instruct` |
+| `deepseek` | `████████████▊░` 90.7% | 40 | $0.0500 | 23.84M | `deepseek-chat` |
+| `openai` | `████████████▋░` 90.6% | 47 | n/a | 21.96M | `gpt-4.1, gpt-4.1-mini` |
+| `gemini` | `██████████▋░░░` 75.7% | 63 | n/a | 19.80M | `gemini-2.5-flash, gemini-2.5-pro` |
+| `anthropic` | `███████▍░░░░░░` 52.3% | 177 | n/a | 7.16M | `claude-haiku-4-5, claude-sonnet-4-6` |
 
 _\* `openai`, `gemini`, `anthropic` cost is `n/a` — provider has no configured pricing._
 
@@ -97,46 +97,46 @@ _Tokens spent in the cheap readiness gatekeeper (`ProcessInputAssessment`) vs th
 
 | Test | Fail rate | Providers failed | Samples |
 |---|:--|---|--:|
-| `error boundary event()` | `█████████▉░░` 41.0% | 5 — anthropic, deepseek, gemini, llama, openai | 83 |
-| `event-based gateway()` | `████▊░░░░░░░` 19.8% | 3 — anthropic, llama, openai | 86 |
-| `parallel gateway()` | `████▍░░░░░░░` 18.3% | 3 — anthropic, gemini, llama | 82 |
-| `escalation end()` | `████▍░░░░░░░` 18.1% | 4 — anthropic, deepseek, gemini, openai | 83 |
-| `standard loop activity()` | `████▍░░░░░░░` 18.1% | 4 — anthropic, deepseek, gemini, openai | 83 |
-| `intermediate signal throw()` | `████▎░░░░░░░` 17.5% | 4 — anthropic, gemini, llama, openai | 80 |
+| `error boundary event()` | `█████████▊░░` 40.5% | 5 — anthropic, deepseek, gemini, llama, openai | 84 |
+| `event-based gateway()` | `████▋░░░░░░░` 19.5% | 3 — anthropic, llama, openai | 87 |
+| `parallel gateway()` | `████▍░░░░░░░` 18.1% | 3 — anthropic, gemini, llama | 83 |
+| `escalation end()` | `████▎░░░░░░░` 17.9% | 4 — anthropic, deepseek, gemini, openai | 84 |
+| `standard loop activity()` | `████▎░░░░░░░` 17.9% | 4 — anthropic, deepseek, gemini, openai | 84 |
+| `intermediate signal throw()` | `████▏░░░░░░░` 17.3% | 4 — anthropic, gemini, llama, openai | 81 |
 
 <details>
-<summary>28 more flaky tests (≤ 16.3% fail rate)</summary>
+<summary>28 more flaky tests (≤ 16.0% fail rate)</summary>
 
 | Test | Fail rate | Providers failed | Samples |
 |---|:--|---|--:|
-| `signal end()` | `███▉░░░░░░░░` 16.3% | 5 — anthropic, deepseek, gemini, llama, openai | 80 |
-| `escalation boundary event()` | `███▊░░░░░░░░` 15.7% | 4 — anthropic, deepseek, gemini, openai | 83 |
-| `intermediate message throw()` | `███▋░░░░░░░░` 15.3% | 5 — anthropic, deepseek, gemini, llama, openai | 85 |
-| `business rule task()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `data objects and stores()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `manual task()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `message start()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `sequential multi-instance activity()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `timer start()` | `███▎░░░░░░░░` 13.8% | 3 — anthropic, gemini, openai | 80 |
-| `message end()` | `██▉░░░░░░░░░` 11.8% | 3 — anthropic, gemini, openai | 85 |
-| `receive task()` | `██▉░░░░░░░░░` 11.8% | 3 — anthropic, gemini, openai | 85 |
-| `signal start()` | `██▉░░░░░░░░░` 11.8% | 3 — anthropic, gemini, openai | 85 |
-| `intermediate escalation throw()` | `██▊░░░░░░░░░` 11.6% | 4 — anthropic, deepseek, llama, openai | 86 |
-| `terminate end()` | `██▊░░░░░░░░░` 11.6% | 3 — anthropic, mistral, openai | 86 |
-| `exclusive gateway()` | `██▎░░░░░░░░░` 9.6% | 4 — anthropic, gemini, llama, openai | 83 |
-| `inclusive gateway()` | `██▎░░░░░░░░░` 9.3% | 2 — anthropic, openai | 86 |
-| `service task()` | `██▎░░░░░░░░░` 9.3% | 2 — anthropic, openai | 86 |
-| `user task()` | `██▎░░░░░░░░░` 9.3% | 2 — anthropic, openai | 86 |
-| `event subprocess()` | `██░░░░░░░░░░` 8.5% | 3 — anthropic, gemini, mistral | 82 |
-| `timer boundary event()` | `██░░░░░░░░░░` 8.5% | 3 — anthropic, gemini, mistral | 82 |
-| `script task()` | `██░░░░░░░░░░` 8.4% | 3 — anthropic, gemini, openai | 83 |
-| `error end()` | `█▊░░░░░░░░░░` 7.3% | 2 — anthropic, gemini | 82 |
-| `pools and lanes from distinct actors()` | `█▊░░░░░░░░░░` 7.3% | 2 — anthropic, gemini | 82 |
-| `parallel multi-instance activity()` | `█▊░░░░░░░░░░` 7.2% | 4 — anthropic, deepseek, gemini, openai | 83 |
-| `call activity()` | `█▋░░░░░░░░░░` 7.0% | 3 — anthropic, gemini, openai | 71 |
-| `embedded subprocess()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 83 |
-| `exclusive gateway with default branch()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 83 |
-| `send task()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 83 |
+| `signal end()` | `███▉░░░░░░░░` 16.0% | 5 — anthropic, deepseek, gemini, llama, openai | 81 |
+| `escalation boundary event()` | `███▊░░░░░░░░` 15.5% | 4 — anthropic, deepseek, gemini, openai | 84 |
+| `intermediate message throw()` | `███▋░░░░░░░░` 15.1% | 5 — anthropic, deepseek, gemini, llama, openai | 86 |
+| `business rule task()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `data objects and stores()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `manual task()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `message start()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `sequential multi-instance activity()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `timer start()` | `███▎░░░░░░░░` 13.6% | 3 — anthropic, gemini, openai | 81 |
+| `message end()` | `██▊░░░░░░░░░` 11.6% | 3 — anthropic, gemini, openai | 86 |
+| `receive task()` | `██▊░░░░░░░░░` 11.6% | 3 — anthropic, gemini, openai | 86 |
+| `signal start()` | `██▊░░░░░░░░░` 11.6% | 3 — anthropic, gemini, openai | 86 |
+| `intermediate escalation throw()` | `██▊░░░░░░░░░` 11.5% | 4 — anthropic, deepseek, llama, openai | 87 |
+| `terminate end()` | `██▊░░░░░░░░░` 11.5% | 3 — anthropic, mistral, openai | 87 |
+| `exclusive gateway()` | `██▎░░░░░░░░░` 9.5% | 4 — anthropic, gemini, llama, openai | 84 |
+| `inclusive gateway()` | `██▎░░░░░░░░░` 9.2% | 2 — anthropic, openai | 87 |
+| `service task()` | `██▎░░░░░░░░░` 9.2% | 2 — anthropic, openai | 87 |
+| `user task()` | `██▎░░░░░░░░░` 9.2% | 2 — anthropic, openai | 87 |
+| `event subprocess()` | `██░░░░░░░░░░` 8.4% | 3 — anthropic, gemini, mistral | 83 |
+| `timer boundary event()` | `██░░░░░░░░░░` 8.4% | 3 — anthropic, gemini, mistral | 83 |
+| `script task()` | `██░░░░░░░░░░` 8.3% | 3 — anthropic, gemini, openai | 84 |
+| `error end()` | `█▊░░░░░░░░░░` 7.2% | 2 — anthropic, gemini | 83 |
+| `pools and lanes from distinct actors()` | `█▊░░░░░░░░░░` 7.2% | 2 — anthropic, gemini | 83 |
+| `parallel multi-instance activity()` | `█▊░░░░░░░░░░` 7.1% | 4 — anthropic, deepseek, gemini, openai | 84 |
+| `call activity()` | `█▋░░░░░░░░░░` 6.9% | 3 — anthropic, gemini, openai | 72 |
+| `embedded subprocess()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 84 |
+| `exclusive gateway with default branch()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 84 |
+| `send task()` | `█▌░░░░░░░░░░` 6.0% | 3 — anthropic, gemini, openai | 84 |
 
 </details>
 
