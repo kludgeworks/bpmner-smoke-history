@@ -61,14 +61,18 @@ def _create_signal_results_view(con: duckdb.DuckDBPyConnection) -> None:
     """
     columns = {row[0] for row in con.execute("DESCRIBE results").fetchall()}
 
-    explicit = "lower(coalesce(failureSignal, '')) = 'no_signal'" if "failureSignal" in columns else "false"
+    explicit = (
+        "lower(coalesce(CAST(failureSignal AS VARCHAR), '')) = 'no_signal'"
+        if "failureSignal" in columns
+        else "false"
+    )
     zero_calls = "coalesce(llmCallCount, 0) = 0" if "llmCallCount" in columns else "false"
     clue_terms: list[str] = []
     for column in ("failureCategory", "failureSignal", "failureSignature"):
         if column in columns:
             clue_terms.append(
                 "regexp_matches("
-                f"lower(coalesce({column}, '')), "
+                f"lower(coalesce(CAST({column} AS VARCHAR), '')), "
                 "'quota|billing|credit|credits|account|rate[ _-]?limit|insufficient|exhausted'"
                 ")"
             )

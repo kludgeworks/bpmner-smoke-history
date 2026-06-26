@@ -361,6 +361,60 @@ def test_legacy_unknown_cost_without_quota_clue_remains_signal(tmp_path):
     assert "| `harnessSetup` |" in md
 
 
+def test_nullable_failure_signal_json_columns_do_not_break_render(tmp_path):
+    data = tmp_path / "data"
+    _write_rows(
+        data,
+        [
+            {
+                "ts": "2026-06-26T08:20:00Z",
+                "runId": "1",
+                "provider": "anthropic",
+                "servedModel": None,
+                "testMethod": "quotaSkip",
+                "outcome": "skip",
+                "failureCategory": "infra",
+                "failureSignal": None,
+                "failureSignature": None,
+                "message": "Assumption failed: credit balance is too low",
+                "costUsd": 0.0,
+                "costKnown": "unknown",
+                "promptTokens": 0,
+                "completionTokens": 0,
+                "llmCallCount": 0,
+                "stageBreakdown": {},
+                "roleBreakdown": {},
+                "runComplete": True,
+            },
+            {
+                "ts": "2026-06-26T08:21:00Z",
+                "runId": "1",
+                "provider": "openai",
+                "servedModel": "gpt-4.1",
+                "testMethod": "signal",
+                "outcome": "pass",
+                "failureCategory": None,
+                "failureSignal": None,
+                "failureSignature": None,
+                "message": None,
+                "costUsd": 0.01,
+                "costKnown": "priced",
+                "promptTokens": 10,
+                "completionTokens": 2,
+                "llmCallCount": 1,
+                "stageBreakdown": {"readiness": {"model": "gpt-4.1", "promptTokens": 10}},
+                "roleBreakdown": {"readiness-assessor": {"model": "gpt-4.1"}},
+                "runComplete": True,
+            },
+        ],
+    )
+
+    md = render(data)
+
+    assert "## Provider scorecard" in md
+    assert "| `openai` |" in md
+
+
 def test_unicode_bar_is_fixed_width_and_proportional():
     # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
     assert unicode_bar(1.0, 14) == "█" * 14
