@@ -1,7 +1,7 @@
 -- Copyright 2026 The Project Contributors
 -- SPDX-License-Identifier: MIT
 --
--- Per-provider scorecard over the `results` view (created by render_dashboard._load).
+-- Per-provider scorecard over the `signal_results` view (created by render_dashboard._load).
 -- runId (the dispatching Actions run id, stamped by consolidate) is the canonical per-run key.
 SELECT
     provider,
@@ -14,6 +14,7 @@ SELECT
     round(sum(costUsd) / nullif(count(DISTINCT runId), 0), 4) AS cost_per_run,
     sum(coalesce(promptTokens, 0) + coalesce(completionTokens, 0)) AS tokens,
     bool_or(costKnown IS DISTINCT FROM 'priced') AS cost_caveat
-FROM results
+FROM signal_results
+WHERE NOT is_no_signal
 GROUP BY provider
 ORDER BY provider;

@@ -46,7 +46,42 @@ def _load(con: duckdb.DuckDBPyConnection, data_dir: Path) -> bool:
         WHERE runComplete  -- partial/cancelled runs are kept on disk but excluded from the dashboard
         """
     )
+    _create_signal_results_view(con)
     return True
+
+
+def _create_signal_results_view(con: duckdb.DuckDBPyConnection) -> None:
+    """Create a compatibility view that marks non-product/account-state failures.
+
+    Historical rows may be missing Stage-1 columns, so build the expression only from columns that DuckDB
+    reports on the loaded `results` view. Explicit `failureSignal = 'no_signal'` wins when present; the
+    legacy fallback is intentionally narrow: failed rows with zero LLM calls plus quota/billing/account clues
+    are metadata, not model/test signal. Unknown-cost zero-call failures without those clues remain signal for
+    flaky and failure-category metrics; cost queries handle pricing availability separately.
+    """
+    columns = {row[0] for row in con.execute("DESCRIBE results").fetchall()}
+
+    explicit = "lower(coalesce(failureSignal, '')) = 'no_signal'" if "failureSignal" in columns else "false"
+    zero_calls = "coalesce(llmCallCount, 0) = 0" if "llmCallCount" in columns else "false"
+    clue_terms: list[str] = []
+    for column in ("failureCategory", "failureSignal", "failureSignature"):
+        if column in columns:
+            clue_terms.append(
+                "regexp_matches("
+                f"lower(coalesce({column}, '')), "
+                "'quota|billing|credit|credits|account|rate[ _-]?limit|insufficient|exhausted'"
+                ")"
+            )
+    legacy_clues = " OR ".join(clue_terms) if clue_terms else "false"
+    legacy = f"(outcome = 'fail' AND {zero_calls} AND ({legacy_clues}))"
+
+    con.execute(
+        f"""
+        CREATE OR REPLACE VIEW signal_results AS
+        SELECT *, ({explicit} OR {legacy}) AS is_no_signal
+        FROM results
+        """
+    )
 
 
 def _rows(con: duckdb.DuckDBPyConnection, query: str) -> list[dict]:
@@ -404,8 +439,6 @@ def render(data_dir: Path | str, assets_dir: Path | str | None = None) -> str:
     scorecard = _rows(con, "scorecard")
     flaky = _rows(con, "flaky")
     providers = sorted({r["provider"] for r in scorecard})
-    # Providers with no configured pricing — excluded from the per-test cost chart and named in its note.
-    unpriced = sorted(r["provider"] for r in scorecard if r["cost_caveat"])
 
     parts: list[list[str]] = [["# 🔬 Smoke Health"]]
 
@@ -460,11 +493,10 @@ def render(data_dir: Path | str, assets_dir: Path | str | None = None) -> str:
                 intro=[
                     "> [!CAUTION]",
                     "> Cost is normalised **per test** — shard sizes vary run-to-run, so raw per-run "
-                    f"totals aren't comparable.{_excluded_note(unpriced)}",
+                    "totals aren't comparable. Unpriced or no-signal points are excluded.",
                 ],
                 fmt_y=lambda v: f"${v:.3f}",
                 alt_metric="Cost per test",
-                exclude=frozenset(unpriced),
             )
         )
         parts.append(_token_section(con, assets, base))
@@ -486,15 +518,6 @@ def render(data_dir: Path | str, assets_dir: Path | str | None = None) -> str:
 
     blocks = ["\n".join(part) for part in parts if part]
     return "\n\n".join(blocks) + "\n"
-
-
-def _excluded_note(unpriced: list[str]) -> str:
-    """Trailing clause for the cost caveat naming providers dropped for lack of configured pricing."""
-    if not unpriced:
-        return ""
-    joined = ", ".join(f"`{p}`" for p in unpriced)
-    verb = "is" if len(unpriced) == 1 else "are"
-    return f" {joined} {verb} excluded (no configured pricing)."
 
 
 def _cost_per_test(r: dict) -> float | None:

@@ -10,7 +10,8 @@ SELECT
     count(DISTINCT provider) FILTER (WHERE outcome = 'fail') AS providers_failed,
     string_agg(DISTINCT provider, ', ' ORDER BY provider) FILTER (WHERE outcome = 'fail') AS failed_on,
     count(*) AS samples
-FROM results
+FROM signal_results
+WHERE NOT is_no_signal
 GROUP BY testMethod
 HAVING count(DISTINCT provider) FILTER (WHERE outcome = 'fail') > 0
 -- Rank by fail rate (the dashboard surfaces the worst offenders first); providers_failed and the
