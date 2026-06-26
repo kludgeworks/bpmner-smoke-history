@@ -56,7 +56,8 @@ def _create_signal_results_view(con: duckdb.DuckDBPyConnection) -> None:
     Historical rows may be missing Stage-1 columns, so build the expression only from columns that DuckDB
     reports on the loaded `results` view. Explicit `failureSignal = 'no_signal'` wins when present; the
     legacy fallback is intentionally narrow: failed rows with zero LLM calls plus quota/billing/account clues
-    (including unknown-cost zero-call failures) are metadata, not model/test signal.
+    are metadata, not model/test signal. Unknown-cost zero-call failures without those clues remain signal for
+    flaky and failure-category metrics; cost queries handle pricing availability separately.
     """
     columns = {row[0] for row in con.execute("DESCRIBE results").fetchall()}
 
@@ -71,8 +72,6 @@ def _create_signal_results_view(con: duckdb.DuckDBPyConnection) -> None:
                 "'quota|billing|credit|credits|account|rate[ _-]?limit|insufficient|exhausted'"
                 ")"
             )
-    if "costKnown" in columns:
-        clue_terms.append("costKnown IS DISTINCT FROM 'priced'")
     legacy_clues = " OR ".join(clue_terms) if clue_terms else "false"
     legacy = f"(outcome = 'fail' AND {zero_calls} AND ({legacy_clues}))"
 

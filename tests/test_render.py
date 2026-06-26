@@ -330,6 +330,37 @@ def test_legacy_quota_fallback_requires_zero_calls(tmp_path):
     assert "partialQuota" in md
 
 
+def test_legacy_unknown_cost_without_quota_clue_remains_signal(tmp_path):
+    data = tmp_path / "data"
+    _write_rows(
+        data,
+        [
+            {
+                "ts": "2026-06-05T10:00:00Z",
+                "runId": "1",
+                "provider": "legacy",
+                "servedModel": "model",
+                "testMethod": "harnessSetup",
+                "outcome": "fail",
+                "failureCategory": "infra",
+                "failureSignature": "harness setup failed",
+                "costUsd": 0.0,
+                "costKnown": "unknown",
+                "promptTokens": 0,
+                "completionTokens": 0,
+                "llmCallCount": 0,
+                "runComplete": True,
+            }
+        ],
+    )
+
+    md = render(data)
+
+    assert "| `legacy` | `░░░░░░░░░░░░░░` 0.0% | 1 | n/a |" in md
+    assert "| `legacy` | infra | 1 | 100.0 | `harness setup failed` |" in md
+    assert "| `harnessSetup` |" in md
+
+
 def test_unicode_bar_is_fixed_width_and_proportional():
     # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
     assert unicode_bar(1.0, 14) == "█" * 14
