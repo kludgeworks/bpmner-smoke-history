@@ -14,6 +14,7 @@ SELECT
     round(sum(costUsd) / nullif(count(DISTINCT runId), 0), 4) AS cost_per_run,
     sum(coalesce(promptTokens, 0) + coalesce(completionTokens, 0)) AS tokens,
     bool_or(costKnown IS DISTINCT FROM 'priced') AS cost_caveat
-FROM results
+FROM signal_results
+WHERE NOT is_no_signal
 GROUP BY provider
 ORDER BY provider;

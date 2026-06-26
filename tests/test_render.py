@@ -129,6 +129,207 @@ def test_llm_efficiency_callout_handles_single_provider(tmp_path):
     assert "`openai` ran a median of" in md
 
 
+def _write_rows(data: Path, rows: list[dict]) -> None:
+    data.mkdir()
+    (data / "run.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+
+def _row(md: str, name: str) -> str:
+    return next(line for line in md.splitlines() if name in line)
+
+
+def test_no_signal_quota_rows_do_not_poison_priced_costs(tmp_path):
+    data = tmp_path / "data"
+    rows = [
+        {
+            "ts": "2026-06-05T10:00:00Z",
+            "runId": "1",
+            "provider": "openai",
+            "servedModel": "gpt-4.1",
+            "testMethod": "ok1",
+            "outcome": "pass",
+            "costUsd": 0.01,
+            "costKnown": "priced",
+            "promptTokens": 10,
+            "completionTokens": 2,
+            "llmCallCount": 1,
+            "runComplete": True,
+        },
+        {
+            "ts": "2026-06-05T10:00:01Z",
+            "runId": "1",
+            "provider": "openai",
+            "servedModel": "gpt-4.1",
+            "testMethod": "quotaNoise",
+            "outcome": "fail",
+            "failureSignal": "no_signal",
+            "failureSignature": "quota exhausted before request",
+            "costUsd": None,
+            "costKnown": "unknown",
+            "promptTokens": 0,
+            "completionTokens": 0,
+            "llmCallCount": 0,
+            "runComplete": True,
+        },
+        {
+            "ts": "2026-06-06T10:00:00Z",
+            "runId": "2",
+            "provider": "openai",
+            "servedModel": "gpt-4.1",
+            "testMethod": "ok2",
+            "outcome": "pass",
+            "costUsd": 0.02,
+            "costKnown": "priced",
+            "promptTokens": 20,
+            "completionTokens": 4,
+            "llmCallCount": 1,
+            "runComplete": True,
+        },
+    ]
+    _write_rows(data, rows)
+
+    assets = tmp_path / "assets"
+    md = render(data, assets_dir=assets)
+
+    assert "| `openai` |" in md
+    assert "| `openai` | `██████████████` 100.0% | 0 | $0.0150 |" in md
+    assert "quotaNoise" not in md
+    assert "cost-trend-light.svg" in md
+    assert (assets / "cost-trend-light.svg").exists()
+
+
+def test_no_signal_rows_do_not_inflate_flaky_or_failure_categories(tmp_path):
+    data = tmp_path / "data"
+    common = {
+        "ts": "2026-06-05T10:00:00Z",
+        "runId": "1",
+        "servedModel": "model",
+        "costUsd": 0.01,
+        "costKnown": "priced",
+        "promptTokens": 10,
+        "completionTokens": 2,
+        "runComplete": True,
+    }
+    rows = [
+        common
+        | {
+            "provider": "anthropic",
+            "testMethod": "quotaOnly",
+            "outcome": "fail",
+            "failureSignal": "no_signal",
+            "failureSignature": "billing quota",
+            "llmCallCount": 0,
+        },
+        common
+        | {
+            "provider": "gemini",
+            "testMethod": "quotaOnly",
+            "outcome": "fail",
+            "failureSignal": "no_signal",
+            "failureSignature": "billing quota",
+            "llmCallCount": 0,
+        },
+        common
+        | {
+            "provider": "llama",
+            "testMethod": "signalTest",
+            "outcome": "fail",
+            "failureCategory": "classification",
+            "failureSignature": "signalTest::wrong",
+            "llmCallCount": 2,
+        },
+        common
+        | {
+            "provider": "openai",
+            "testMethod": "signalTest",
+            "outcome": "pass",
+            "failureSignature": None,
+            "llmCallCount": 1,
+        },
+    ]
+    _write_rows(data, rows)
+
+    md = render(data)
+
+    assert "quotaOnly" not in md
+    signal_row = _row(md, "`signalTest`")
+    assert "1 — llama" in signal_row
+    assert signal_row.endswith("| 2 |")
+    assert "| `llama` | classification | 1 | 100.0 | `signalTest::wrong` |" in md
+    assert "| `anthropic` | infra |" not in md
+    assert "| `gemini` | infra |" not in md
+
+
+def test_genuinely_unpriced_signal_provider_remains_caveated(tmp_path):
+    data = tmp_path / "data"
+    _write_rows(
+        data,
+        [
+            {
+                "ts": "2026-06-05T10:00:00Z",
+                "runId": "1",
+                "provider": "unpriced",
+                "servedModel": "local",
+                "testMethod": "realSignal",
+                "outcome": "fail",
+                "failureCategory": "infra",
+                "failureSignature": "realSignal::timeout",
+                "costUsd": 0.0,
+                "costKnown": "unknown",
+                "promptTokens": 10,
+                "completionTokens": 2,
+                "llmCallCount": 1,
+                "runComplete": True,
+            }
+        ],
+    )
+
+    md = render(data)
+
+    assert "| `unpriced` | `░░░░░░░░░░░░░░` 0.0% | 1 | n/a |" in md
+    assert "`unpriced` cost is `n/a`" in md
+
+
+def test_legacy_quota_fallback_requires_zero_calls(tmp_path):
+    data = tmp_path / "data"
+    base = {
+        "ts": "2026-06-05T10:00:00Z",
+        "runId": "1",
+        "servedModel": "model",
+        "outcome": "fail",
+        "failureCategory": "infra",
+        "costUsd": 0.0,
+        "costKnown": "unknown",
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "runComplete": True,
+    }
+    _write_rows(
+        data,
+        [
+            base
+            | {
+                "provider": "legacy",
+                "testMethod": "quotaZero",
+                "failureSignature": "quota exhausted",
+                "llmCallCount": 0,
+            },
+            base
+            | {
+                "provider": "legacy",
+                "testMethod": "partialQuota",
+                "failureSignature": "quota after one call",
+                "llmCallCount": 1,
+            },
+        ],
+    )
+
+    md = render(data)
+
+    assert "quotaZero" not in md
+    assert "partialQuota" in md
+
+
 def test_unicode_bar_is_fixed_width_and_proportional():
     # 14-cell scorecard scale: full bar at 100%, exact eighth-block remainder, padded with ░.
     assert unicode_bar(1.0, 14) == "█" * 14

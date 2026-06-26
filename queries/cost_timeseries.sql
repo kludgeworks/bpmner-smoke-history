@@ -13,6 +13,7 @@ SELECT
     sum(coalesce(promptTokens, 0) + coalesce(completionTokens, 0)) AS run_tokens,
     round(avg(llmCallCount), 1) AS avg_llm_calls,
     count(*) AS tests_in_run
-FROM results
+FROM signal_results
+WHERE NOT is_no_signal AND costKnown = 'priced'
 GROUP BY runId, provider
 ORDER BY run_ts, provider;
